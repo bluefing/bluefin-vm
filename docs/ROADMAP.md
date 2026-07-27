@@ -20,17 +20,25 @@ hand.
 - **Delivery is a one-time seed:** the VM self-updates via bootc after first
   boot. Tooling never re-seeds an existing VM — updates arrive inside;
   re-seeding is an explicit, clearly destructive reset.
-- **Install: brew, via the `ublue-os` tap.** What the package contains is
-  undecided (open question 2).
+- **Install: brew installs a thin tool** (`bluefin-vm`), via the `ublue-os`
+  tap — *not* a multi-GB cask, *not* a local build. The tool downloads the
+  CI-built seed and imports + provisions it locally (package shape
+  "downloader", decided 2026-07-28). **Rust** — a single static binary, and
+  aligns with the upstream stack (bootc is Rust). `clap` for the CLI now,
+  `ratatui` for a TUI later, both driving one UI-agnostic core so the CLI
+  isn't throwaway.
+- **Seed hosting: Cloudflare R2**, served at `projectbluefin.dev`, **live
+  2026-07-28** (`projectbluefin.dev/bluefin-vm-raw-arm64.zip` — anonymous,
+  resumable). Long-term the bucket builds/hosts from repo releases, so this
+  side ships no large files itself. GitHub Releases ruled out: the seed is
+  ~2.75 GiB zipped (1.989 GiB even at max zstd — clears the 2 GiB cap by only
+  ~11 MiB, too fragile as the image grows).
+- **Upstreaming:** the repo moves into `ublue-os` when ready (Jorge offered;
+  user-paced — prove on the personal repo first).
 - **First run: no greeter.** The VM boots to a usable desktop.
 
 ## Proposed
 
-- **`bluefin-vm` as a CLI/TUI tool:** brew installs a small tool that
-  downloads the CI-built seed, configures per-user choices (share location,
-  username + ssh key), and drives the runtime. Principles: assume as little
-  as possible about the host (no container toolchain, no local builds);
-  images build upstream in CI.
 - **Flavours:** Bluefin variants are just different bootc images (e.g.
   `bluefin-dx`), so a flavour seed is this pipeline pointed at that image.
 - **Durable-data model:** three tiers — OS (replaced by updates), VM home
@@ -41,11 +49,10 @@ hand.
 
 1. **Seamlessness:** retina crispness, GPU smoothness, dynamic resolution —
    the full parity audit against the goal.
-2. **Brew package shape:** download the VM artifact through brew, ship a
-   thin builder, or ship a thin downloader that fetches the seed
-   out-of-band?
-3. **Publish pipeline:** where seeds live, versioning, how updates reach
-   the seed.
+2. **Brew package shape — decided 2026-07-28:** a thin Go downloader tool
+   (see Decided).
+3. **Publish pipeline:** seeds live in R2 at `projectbluefin.dev` (done);
+   still open: versioning, and wiring the bucket to build/host from releases.
 4. **First-boot account creation:** downloaded seeds are identical for
    every user, so the account cannot come from build time — it must be
    created at first boot or injected by host tooling.
