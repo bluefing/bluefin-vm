@@ -223,3 +223,7 @@ tooling works on ARM:
 - `ujust` recipes (the `just`-based system management commands)
 - the **dx / developer-mode** toggle
 - anything the docs drive that might assume x86
+
+## License
+
+[Apache-2.0](LICENSE) — matching upstream Bluefin.
