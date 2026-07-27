@@ -1,0 +1,22 @@
+# commitlint config — enforces conventional commits with our overrides.
+# Wired into the commit-msg hook stage via .pre-commit-config.yaml.
+# Reference: https://commitlint.js.org/reference/rules.html
+
+extends:
+  - "@commitlint/config-conventional"
+
+# Each rule: [level, condition, value]
+#   level     — 0=disable, 1=warn, 2=error
+#   condition — always | never
+#   value     — rule-specific
+#
+# config-conventional already gives us: type-enum, type-empty, type-case,
+# subject-empty, subject-case, subject-full-stop, body-leading-blank,
+# body-max-line-length, footer-leading-blank, etc. The overrides below
+# tighten the defaults to repo policy.
+rules:
+  # Tighter than config-conventional's default of 100.
+  header-max-length: [2, always, 80]
+
+  # Reject sub-5-char descriptions ("fix: a", "feat(api): x").
+  subject-min-length: [2, always, 5]

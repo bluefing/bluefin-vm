@@ -1,7 +1,8 @@
-# Install the git hook:   pre-commit install
+# Install the hooks:      pre-commit install   (sets up pre-commit + commit-msg)
 # Run against everything:  pre-commit run --all-files
 # Skip once (emergency):   git commit --no-verify
 minimum_pre_commit_version: "3.0.0"
+default_install_hook_types: [pre-commit, commit-msg]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -44,3 +45,14 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+
+  # --- Commit message format (conventional commits) ---
+  # commitlint: rules in .commitlintrc.yaml extend
+  # @commitlint/config-conventional with header-max-length: 80 and
+  # subject-min-length: 5.
+  - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
+    rev: v9.25.0
+    hooks:
+      - id: commitlint
+        stages: [commit-msg]
+        additional_dependencies: ["@commitlint/config-conventional"]
