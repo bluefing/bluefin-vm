@@ -29,6 +29,25 @@ Finished stories move to **Done** with the date.
         `image/Containerfile`.
   - [ ] Issue links recorded here.
 
+### BL-11 — Reconcile config.toml disk sizing with what the builder accepts  ·  `ready` · `S`
+
+**As** a maintainer,
+**I want** config.toml to carry only customizations the builder actually applies,
+**so that** the docs and the built disk match reality.
+
+- **Acceptance:**
+  - [ ] Explain the first-CI-run warning `blueprint validation failed for
+        image type "raw": customizations.filesystem: not supported` — raw-only
+        limitation, schema change (e.g. moved under `customizations.disk`), or
+        silently inert all along?
+  - [ ] Confirm whether the 20 GiB root is applied for any format we ship; if
+        not, fix the schema or drop it and correct config.toml's comment + the
+        docs that cite the `min-free-space` rationale.
+  - [ ] Re-verify a raw build still boots with whatever sizing resolves to.
+- **Notes:** Surfaced by the first CI run (2026-07-27): the build succeeded
+  and produced a 22 GB raw regardless, so the default may now suffice.
+  Investigate the current bootc-image-builder schema before changing anything.
+
 ---
 
 ## Backlog
