@@ -1,0 +1,5 @@
+# Build artifacts (multi-GB disk images / ISOs)
+output/
+
+# macOS junk
+.DS_Store

@@ -1,0 +1,28 @@
+# bootc-image-builder configuration (auto-read when mounted at /config.toml).
+#
+# Bluefin is a full GNOME desktop; its installed footprint overflows the
+# builder's default disk size, which fails the build with:
+#   ostree ... "min-free-space-percent '3%' would be exceeded"
+# Enlarging the root filesystem gives ostree room to write the deployment. This
+# applies to every format: nearly free on qcow2 (thin-provisioned), but a raw
+# disk is a full-size file, so 20 GiB there is 20 GiB on disk.
+[[customizations.filesystem]]
+mountpoint = "/"
+minsize = "20 GiB"
+
+# A built image ships no user account (any format), so first boot has nothing to
+# log in with. Bake a known dev/test login (wheel = sudo) so a pipeline-built VM
+# is immediately usable and debuggable -- log in bluefin/bluefin to confirm the
+# image booted and to exercise the workload. This is NOT a shipping credential;
+# what creates the account in a distributable image is an open question (see
+# ROADMAP).
+[[customizations.user]]
+name = "bluefin"
+password = "bluefin"
+groups = ["wheel"]
+
+# Deliberately nothing else here: this file owns only what MUST happen at
+# disk-build time (partition geometry, the dev/test login). Everything
+# OS-side -- sshd, the share mount, clipboard wiring -- lives in
+# image/Containerfile, where it can be conditional and travels with bootc
+# updates.

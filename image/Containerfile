@@ -1,0 +1,35 @@
+# Derived VM image: upstream Bluefin plus the guest fixes that neither the
+# stock image nor bootc-image-builder's config.toml can provide (see README
+# "One-time guest setup"). This layer is also the working prototype of the
+# upstream ask in BACKLOG BL-1 -- if Bluefin adopts it, this file shrinks.
+ARG BASE=ghcr.io/ublue-os/bluefin:lts-testing-50-arm64
+FROM ${BASE}
+
+# 1. Clipboard: the packaged spice-vdagent user unit is static and GNOME 50
+#    ignores its legacy autostart entry, so nothing starts the agent. Wire it
+#    into graphical sessions -- conditionally (installs without a SPICE
+#    channel skip it at zero cost) and ordered After= the session, because an
+#    unordered start races the session environment and exits in ~40ms with
+#    "could not connect to X-server".
+# 2. ~/Shared: seed new users (created from /etc/skel) with the symlink to
+#    the host share's guest-side mountpoint.
+RUN mkdir -p /usr/lib/systemd/user/graphical-session.target.wants \
+             /usr/lib/systemd/user/spice-vdagent.service.d && \
+    ln -s ../spice-vdagent.service \
+      /usr/lib/systemd/user/graphical-session.target.wants/spice-vdagent.service && \
+    printf '[Unit]\nConditionPathExists=/dev/virtio-ports/com.redhat.spice.0\nAfter=graphical-session.target\nPartOf=graphical-session.target\n\n[Service]\nRestart=on-failure\n' \
+      > /usr/lib/systemd/user/spice-vdagent.service.d/10-vm-only.conf && \
+    ln -s /var/mnt/shared/bluefin-share /etc/skel/Shared
+
+# 3. sshd on by default (preset + enable) -- a VM you cannot reach is useless.
+# 4. The host-share mount as a condition-gated unit: it activates only when a
+#    virtiofs device is present, so boots without a share attached skip
+#    cleanly (inactive, not failed) -- something fstab lines and kernel-arg
+#    mounts cannot express.
+RUN printf 'enable sshd.service\n' > /usr/lib/systemd/system-preset/45-bluefin-vm.preset && \
+    systemctl enable sshd.service && \
+    printf '[Unit]\nDescription=Host share over virtiofs (Tart)\nConditionPathExistsGlob=/sys/fs/virtiofs/*/tag\n\n[Mount]\nWhat=com.apple.virtio-fs.automount\nWhere=/var/mnt/shared\nType=virtiofs\n' \
+      > /usr/lib/systemd/system/var-mnt-shared.mount && \
+    mkdir -p /usr/lib/systemd/system/multi-user.target.wants && \
+    ln -s ../var-mnt-shared.mount \
+      /usr/lib/systemd/system/multi-user.target.wants/var-mnt-shared.mount

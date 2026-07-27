@@ -1,0 +1,72 @@
+name: Build ARM64 Bluefin VM image
+
+# Builds the distribution artifact on a native aarch64 runner: the derived VM
+# image (image/Containerfile) layered on the upstream Bluefin container, then
+# a bootable disk from it. The same scripts run locally -- CI is just the
+# automated invocation of ./bin/build-image.sh + ./bin/build-disk.sh.
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: Source bootc container image (must be an arm64 build)
+        default: ghcr.io/ublue-os/bluefin:lts-testing-50-arm64
+        type: string
+      format:
+        description: Output format
+        default: raw
+        type: choice
+        options: [raw, qcow2, iso, vmdk]
+      patched:
+        description: Layer image/Containerfile onto the source image first
+        default: true
+        type: boolean
+  # Uncomment to rebuild weekly so the artifact tracks upstream:
+  # schedule:
+  #   - cron: '0 6 * * 1'
+
+jobs:
+  build:
+    # Native ARM64 hosted runner -> no CPU emulation, no cross-arch caveats.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    env:
+      IMAGE: ${{ github.event.inputs.image || 'ghcr.io/ublue-os/bluefin:lts-testing-50-arm64' }}
+      FORMAT: ${{ github.event.inputs.format || 'raw' }}
+      PATCHED: ${{ github.event.inputs.patched || 'true' }}
+      PATCHED_TAG: localhost/bluefin-vm-patched:ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show host arch (sanity check)
+        run: uname -m   # expect: aarch64
+
+      # Both scripts auto-select Podman on Linux; rootful storage needs sudo.
+      - name: Build the derived image
+        if: env.PATCHED == 'true'
+        run: |
+          sudo podman pull "$IMAGE"
+          sudo ./bin/build-image.sh -t "$PATCHED_TAG" -b "$IMAGE"
+
+      - name: Build the disk
+        run: |
+          if [ "$PATCHED" = "true" ]; then
+            sudo ./bin/build-disk.sh -f "$FORMAT" -i "$PATCHED_TAG"
+          else
+            sudo ./bin/build-disk.sh -f "$FORMAT" -i "$IMAGE"
+          fi
+
+      - name: Restore ownership of output
+        run: sudo chown -R "$(id -u):$(id -g)" output
+
+      - name: List artifacts
+        run: ls -lhR output
+
+      - name: Upload image
+        uses: actions/upload-artifact@v4
+        with:
+          name: bluefin-vm-${{ env.FORMAT }}-arm64
+          path: output/**
+          if-no-files-found: error
+          # Disk images are multi-GB; keep retention short.
+          retention-days: 7
