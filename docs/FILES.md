@@ -157,6 +157,10 @@ porcelain = recipes.
 
 - `tests/*.bats` — offline bats suite (no builds, no network): arg handling,
   dry-run output, recipe wiring. Run with `just test`.
+- `tests/smoke/guest-checks.sh` — runtime acceptance test run *inside* a
+  booted VM (not part of `just test`): verifies the baked patches (sshd,
+  vdagent, share) and writes a timestamped result back through the share.
+  Driven by `just tart smoke <name>`.
 - `.github/workflows/build-arm-image.yml` — runs `bin/build-image.sh` +
   `bin/build-disk.sh` on an ARM64 runner (patched build by default) and uploads the
   disk as an artifact.

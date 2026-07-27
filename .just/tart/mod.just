@@ -62,6 +62,35 @@ up name=default_name image=default_image:
 ssh name=default_name:
   ssh "${TART_SSH_USER:-bluefin}@$(tart ip "{{name}}" --resolver arp)"
 
+# Run the guest smoke test in a running VM: deliver tests/smoke/guest-checks.sh
+# through the share, run it over ssh with a host-generated run id, then assert
+# the guest wrote that exact file back -- which proves the share round-trip
+# deterministically (host picks the name, so seeing it isn't coincidence). The
+# recipe's exit code is the guest's (checks pass/fail). The VM must already be
+# up with the share attached (just tart up / start). Host-key checking is off:
+# test VMs are disposable and re-keyed each rebuild.
+[doc('Run the guest smoke test in a running VM; assert the share round-trip')]
+[no-cd]
+[group('lifecycle')]
+[script]
+smoke name=default_name:
+  run_id="$(date +%Y%m%d-%H%M%S)"
+  expected="{{default_share}}/${run_id}-guest-checks.log"
+  mkdir -p "{{default_share}}"
+  cp tests/smoke/guest-checks.sh "{{default_share}}/"
+  guest_rc=0
+  ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+    "${TART_SSH_USER:-bluefin}@$(tart ip "{{name}}" --resolver arp)" \
+    "bash ~/Shared/guest-checks.sh $run_id" || guest_rc=$?
+  echo ">> share round-trip: expecting $expected"
+  if [ -f "$expected" ]; then
+    echo ">> PASS: guest wrote the run's log and the host can see it"
+  else
+    echo ">> FAIL: that file is not visible on the host -- share round-trip broken" >&2
+    exit 1
+  fi
+  exit "$guest_rc"
+
 # Stop a running Tart VM
 [group('lifecycle')]
 stop name=default_name:

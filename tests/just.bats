@@ -65,6 +65,16 @@ setup() {
   [[ "$output" == *"bluefin"* ]]
 }
 
+@test "just tart smoke delivers the script, runs it, and asserts the round-trip" {
+  run just --dry-run tart smoke
+  [[ "$output" == *"tests/smoke/guest-checks.sh"* ]]
+  [[ "$output" == *"tart ip"* ]]
+  [[ "$output" == *"bash ~/Shared/guest-checks.sh"* ]]
+  # host generates the run id and asserts that exact file came back
+  [[ "$output" == *"run_id="* ]]
+  [[ "$output" == *'guest-checks.log"'* ]]
+}
+
 @test "just tart up-patched chains container build -> disk -> import -> up" {
   run just --dry-run tart up-patched
   [[ "$output" == *"bin/build-image.sh"* ]]

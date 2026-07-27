@@ -215,6 +215,12 @@ just lint        # pre-commit run --all-files: shellcheck, shfmt, hadolint, test
 A `pre-commit` hook gates every commit; set it up once with
 `pre-commit install`.
 
+Those are the offline dev-loop checks. There's also a **runtime** check that
+runs *inside* a booted VM — `just tart smoke <name>` delivers
+`tests/smoke/guest-checks.sh` through the share, runs it in the guest, and
+reports on the baked patches (sshd, clipboard agent, share). Use it to
+validate a seed actually works, not just that the plumbing is wired.
+
 ## What to test once booted
 
 The workload is the test, not the conversion — check the Bluefin-specific
