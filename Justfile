@@ -1,7 +1,11 @@
 import '.just/_config.just'
 import '.just/_common.just'
 
-# Run and manage the Bluefin VM (Apple VF, CLI-first) -- the front door
+# The `bluefin-vm` tool (Rust) -- the front door: download, import, run (`up`)
+[group('cli')]
+mod cli '.just/cli'
+
+# Run & manage an already-imported VM (Apple VF, CLI-first) -- dev/runtime
 [group('tart')]
 mod tart '.just/tart'
 
@@ -9,22 +13,17 @@ mod tart '.just/tart'
 [group('image-build')]
 mod build '.just/build'
 
-# The `bluefin-vm` downloader/runner tool (Rust)
-[group('cli')]
-mod cli '.just/cli'
-
 # Run the test suite: bats (offline) + the cli's Rust unit tests
 [group('test')]
-test:
+test: cli::test
   bats tests
-  just cli test
 
 # Run all pre-commit hooks on all files (shellcheck, shfmt, yaml, tests, ...)
 [group('test')]
 lint:
   pre-commit run --all-files
 
-# Remove build outputs
+# Remove build outputs (disk images and the cli's Rust artifacts)
 [group('maintenance')]
-clean:
+clean: cli::clean
   rm -rf output
