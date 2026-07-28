@@ -2,8 +2,8 @@
 //!
 //! CLI-first, but the real work lives in `core` (UI-agnostic) so a ratatui
 //! TUI can wrap the same operations later without rewriting them. `up` is the
-//! front door — download → extract → import → run; the other subcommands expose
-//! the individual steps for debugging.
+//! front door — download → extract → import → provision → run; the other
+//! subcommands expose the individual steps for debugging.
 
 mod core;
 
@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use indicatif::{ProgressBar, ProgressStyle};
 
 /// Where the CI-built seed is published (Cloudflare R2).
@@ -26,9 +26,23 @@ struct Cli {
     command: Command,
 }
 
+/// Flags shared by `up` and `provision` for the first-boot account.
+#[derive(Args)]
+struct ProvisionArgs {
+    /// Account to create in the VM (default: your macOS username, $USER).
+    #[arg(long)]
+    user: Option<String>,
+    /// SSH public key to authorise (default: auto-detected ~/.ssh/*.pub).
+    #[arg(long)]
+    ssh_key: Option<PathBuf>,
+    /// Boot to the greeter instead of autologging into the provisioned user.
+    #[arg(long)]
+    no_autologin: bool,
+}
+
 #[derive(Subcommand)]
 enum Command {
-    /// Download, extract, import, and start the VM (the whole pipeline).
+    /// Download, extract, import, provision, and start the VM (the whole pipeline).
     Up {
         /// Tart VM name.
         #[arg(long, default_value = DEFAULT_VM_NAME)]
@@ -45,6 +59,11 @@ enum Command {
         /// Host folder shared into the VM (durable tier).
         #[arg(long)]
         share: Option<PathBuf>,
+        /// Skip provisioning; boot the baked test login instead.
+        #[arg(long)]
+        no_provision: bool,
+        #[command(flatten)]
+        provision: ProvisionArgs,
     },
     /// Download the VM seed (resumable), optionally verifying its checksum.
     Download {
@@ -76,6 +95,14 @@ enum Command {
         #[arg(long, default_value = DEFAULT_VM_NAME)]
         name: String,
     },
+    /// Write first-boot provisioning into the share (usually done by `up`).
+    Provision {
+        #[command(flatten)]
+        provision: ProvisionArgs,
+        /// Host folder shared into the VM (durable tier).
+        #[arg(long)]
+        share: Option<PathBuf>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -86,7 +113,17 @@ fn main() -> Result<()> {
             sha256,
             work_dir,
             share,
-        } => up(&name, &url, sha256.as_deref(), work_dir, share),
+            no_provision,
+            provision,
+        } => up(
+            &name,
+            &url,
+            sha256.as_deref(),
+            work_dir,
+            share,
+            provision,
+            no_provision,
+        ),
         Command::Download { out, url, sha256 } => {
             let outcome = download(&url, &out, sha256.as_deref())?;
             report_download(&outcome, &out);
@@ -103,16 +140,31 @@ fn main() -> Result<()> {
             eprintln!("Imported.");
             Ok(())
         }
+        Command::Provision { provision, share } => {
+            let share = share.unwrap_or_else(default_share);
+            let prov = provision.resolve()?;
+            core::provision::write(&share, &prov)?;
+            eprintln!(
+                "Wrote provisioning for '{}' to {}",
+                prov.username,
+                share.join(".bluefin-vm").display()
+            );
+            Ok(())
+        }
     }
 }
 
-/// The full pipeline: fetch the seed, unpack its disk, import it, start the VM.
+/// The full pipeline: fetch the seed, unpack its disk, import it, provision the
+/// first-boot account, and start the VM.
+#[allow(clippy::too_many_arguments)]
 fn up(
     name: &str,
     url: &str,
     expected: Option<&str>,
     work_dir: Option<PathBuf>,
     share: Option<PathBuf>,
+    provision: ProvisionArgs,
+    no_provision: bool,
 ) -> Result<()> {
     let work_dir = work_dir.unwrap_or_else(default_work_dir);
     let share = share.unwrap_or_else(default_share);
@@ -128,12 +180,29 @@ fn up(
     eprintln!("Importing into Tart VM '{name}'…");
     core::tart::import(&disk, &core::tart::VmSpec::new(name))?;
 
+    // Provision before boot: the guest oneshot reads the share on first boot.
+    let provisioned = if no_provision {
+        None
+    } else {
+        let prov = provision.resolve()?;
+        eprintln!("Provisioning first-boot account '{}'…", prov.username);
+        core::provision::write(&share, &prov)?;
+        Some(prov.username)
+    };
+
     let log = std::env::temp_dir().join(format!("tart-{name}.log"));
     core::tart::run_detached(name, &share, &log, Duration::from_secs(3))?;
     eprintln!(
         "VM '{name}' running detached (window open). Log: {}",
         log.display()
     );
+    match &provisioned {
+        Some(user) => {
+            eprintln!("First boot creates '{user}' — log in there (autologin / ssh key).");
+            eprintln!("Lock it down anytime: run `bluefin-vm-harden` in the VM.");
+        }
+        None => eprintln!("No provisioning — the baked test login (bluefin/bluefin) applies."),
+    }
     eprintln!("Share: {}", share.display());
     eprintln!("Stop it:  tart stop {name}");
     Ok(())
@@ -222,6 +291,45 @@ fn default_share() -> PathBuf {
     std::env::var_os("TART_SHARE_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|| home().join("bluefin-share"))
+}
+
+/// Default account name: the host's `$USER`, so the VM feels like the user's.
+fn default_username() -> Option<String> {
+    std::env::var("USER").ok().filter(|s| !s.is_empty())
+}
+
+/// Auto-detect the host's ssh public key, preferring ed25519.
+fn default_ssh_key() -> Option<PathBuf> {
+    let ssh = home().join(".ssh");
+    ["id_ed25519.pub", "id_ecdsa.pub", "id_rsa.pub"]
+        .into_iter()
+        .map(|f| ssh.join(f))
+        .find(|p| p.exists())
+}
+
+impl ProvisionArgs {
+    /// Resolve the flags (with host defaults) into what the guest needs.
+    fn resolve(self) -> Result<core::provision::Provision> {
+        let username = self
+            .user
+            .or_else(default_username)
+            .context("no --user given and $USER is unset")?;
+        let authorized_keys = match self.ssh_key.or_else(default_ssh_key) {
+            Some(p) => std::fs::read_to_string(&p)
+                .with_context(|| format!("reading ssh key {}", p.display()))?,
+            None => {
+                eprintln!(
+                    "Warning: no ssh public key found (~/.ssh/*.pub); pass --ssh-key to set one"
+                );
+                String::new()
+            }
+        };
+        Ok(core::provision::Provision {
+            username,
+            authorized_keys,
+            autologin: !self.no_autologin,
+        })
+    }
 }
 
 #[cfg(test)]
