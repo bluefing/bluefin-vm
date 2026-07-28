@@ -179,6 +179,25 @@ Finished stories move to **Done** with the date.
   `id_ed25519|id_ecdsa|id_rsa.pub`; FIDO `sk` keys and multi-key setups need
   `--ssh-key` (and `sk` keys need the token present to authenticate — expected).
 
+### BL-15 — Provisioning: GUI polkit auth for the password-less account  ·  `backlog` · `S`
+
+**As** a user of a provisioned VM,
+**I want** graphical privilege prompts (polkit) to work for my password-less account,
+**so that** GUI admin actions aren't blocked by a password I don't have.
+
+- **Acceptance:**
+  - [ ] Decide: a scoped polkit rule (`/etc/polkit-1/rules.d/`) letting the
+        provisioned user authorise admin actions without a password — mirroring
+        the passwordless-sudo posture — vs. leaving it to `bluefin-vm-harden`
+        (set a password → polkit works).
+  - [ ] If a rule: scope it to the provisioned user, consistent with the
+        per-user sudoers approach.
+  - [ ] Verify a GUI-gated admin action works on the autologin desktop.
+- **Notes:** The passwordless-sudo drop-in covers CLI `sudo` only; polkit is a
+  separate mechanism (PROVISIONING.md Limits). Same "no password" root cause as
+  autologin / passwordless-sudo / lock-disable — the one such consequence not
+  yet handled. Narrow in practice (much Bluefin admin is CLI or Flatpak).
+
 ---
 
 ## Blocked / waiting

@@ -196,4 +196,5 @@ provision → run.
   `bin/build-disk.sh` on an ARM64 runner (patched build by default) and uploads the
   disk as an artifact.
 - `README.md` — user-facing source of truth. `CLAUDE.md` — agent overlay.
-  `docs/ROADMAP.md` (decisions/questions), `docs/BACKLOG.md` (stories).
+  `docs/ROADMAP.md` (decisions/questions), `docs/BACKLOG.md` (stories),
+  `docs/PROVISIONING.md` (first-boot provisioning: design + rationale).

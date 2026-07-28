@@ -180,13 +180,11 @@ first boot: it writes your account — username, ssh public key, autologin — i
 the share, and a guest oneshot creates it on first boot, then clears the file.
 Defaults come from the host (`$USER`, `~/.ssh/*.pub`); see `up --help` to
 override, or to skip provisioning and keep the baked `bluefin`/`bluefin` login.
+To lock the account down afterwards, run `bluefin-vm-harden` in the VM.
 
-Credential model: **public key only, no password.** A password-less account
-can't reach a greeter or `sudo`, so provisioning gives it autologin (desktop),
-the ssh key (terminal), and a passwordless-sudo rule scoped to that user
-(admin) — the disposable-VM posture: the VM holds no durable secrets (those
-live in the share). Want the stricter posture? Run `bluefin-vm-harden` in the
-VM — it sets a password and drops the passwordless-sudo rule.
+The credential model — why a password-less account gets autologin, passwordless
+sudo, and a lock-free desktop — and the mechanism are in
+[docs/PROVISIONING.md](docs/PROVISIONING.md).
 
 ### One-time guest setup
 
