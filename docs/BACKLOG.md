@@ -158,6 +158,24 @@ Finished stories move to **Done** with the date.
   - [ ] No file → fallback to the baked test login.
   - [ ] Secrets stance: public keys only; no passwords through the share.
 
+### BL-13 — Dev env: use host ssh keys / YubiKey *from* the guest  ·  `backlog` · `M`
+
+**As** a developer,
+**I want** my host ssh keys and YubiKey usable from inside the VM,
+**so that** git/ssh and signing work without copying private keys into it.
+
+- **Acceptance:**
+  - [ ] Agent forwarding is the supported path — e.g. a `bluefin-vm ssh` that
+        forwards the host agent, so guest git-over-ssh signs via the host
+        (YubiKey touch on the Mac); no private key ever in the VM.
+  - [ ] Desktop story decided: forwarding only covers ssh sessions, not the
+        autologin desktop — evaluate USB/YubiKey passthrough (Tart/VZ support)
+        or a desktop-side agent.
+  - [ ] Documented (README "working from the VM").
+- **Notes:** Distinct from provisioning (BL-8), which installs a *public* key to
+  get you *into* the VM. This is using keys *from* it. Nothing host-specific is
+  baked into the seed.
+
 ---
 
 ## Blocked / waiting
