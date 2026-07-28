@@ -15,3 +15,6 @@ clap = { version = "4", features = ["derive"] }
 ureq = "3"
 sha2 = "0.11"
 indicatif = "0.18"
+# Seed is a zip64 archive (the disk entry is >4 GiB) compressed with deflate;
+# no other codec/crypto features needed, so keep the default set out.
+zip = { version = "2", default-features = false, features = ["deflate"] }
