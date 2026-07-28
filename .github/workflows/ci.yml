@@ -1,0 +1,42 @@
+name: CI
+
+# The same gate the local hooks run, but authoritative: it can't be bypassed
+# with `--no-verify` or skipped by a rebase. Runs the full pre-commit suite
+# (shellcheck, shfmt, hadolint, bats, and the Rust clippy/test gate) on every
+# push and PR. Arch-independent -- only the image build (build-arm-image.yml)
+# needs an ARM runner.
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: extractions/setup-just@v2
+
+      - name: Install the system tools the hooks call
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck bats
+          shfmt=v3.10.0
+          hadolint=v2.12.0
+          sudo curl -fsSL "https://github.com/mvdan/sh/releases/download/${shfmt}/shfmt_${shfmt}_linux_amd64" -o /usr/local/bin/shfmt
+          sudo curl -fsSL "https://github.com/hadolint/hadolint/releases/download/${hadolint}/hadolint-Linux-x86_64" -o /usr/local/bin/hadolint
+          sudo chmod +x /usr/local/bin/shfmt /usr/local/bin/hadolint
+
+      - name: Rust components (toolchain is preinstalled on the runner)
+        run: rustup component add clippy rustfmt
+
+      - name: Install pre-commit
+        run: pipx install pre-commit
+
+      - name: Run the pre-commit gate
+        run: pre-commit run --all-files --show-diff-on-failure
