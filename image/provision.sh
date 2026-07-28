@@ -44,8 +44,9 @@ printf '%s ALL=(ALL) NOPASSWD:ALL\n' "$user" >"$sudoers"
 chmod 440 "$sudoers"
 
 # Autologin (no greeter) when the host asked for it -- a password-less account
-# is only reachable at the desktop this way. Edit in place with configparser so
-# any settings the base image ships in custom.conf survive.
+# is only reachable at the desktop this way, and (below) the idle lock is
+# disabled so it can't trap itself. Edit custom.conf in place with configparser
+# so any settings the base image ships survive.
 if [[ -e $pdir/autologin ]]; then
   python3 - "$user" <<'PY'
 import configparser, os, sys
@@ -63,6 +64,20 @@ os.makedirs("/etc/gdm", exist_ok=True)
 with open(path, "w") as f:
     cfg.write(f)
 PY
+
+  # A password-less account can't clear the lock screen either, so an idle lock
+  # would trap the autologin desktop until reboot. Disable it with a dconf system
+  # default (/etc is writable at runtime; /usr is not) -- the screen may still
+  # blank, it just won't lock.
+  if [[ ! -f /etc/dconf/profile/user ]]; then
+    printf 'user-db:user\nsystem-db:local\n' >/etc/dconf/profile/user
+  elif ! grep -q '^system-db:local' /etc/dconf/profile/user; then
+    echo 'system-db:local' >>/etc/dconf/profile/user
+  fi
+  mkdir -p /etc/dconf/db/local.d
+  printf '[org/gnome/desktop/screensaver]\nlock-enabled=false\n' \
+    >/etc/dconf/db/local.d/00-bluefin-vm-nolock
+  dconf update
 fi
 
 # Applied -- clear the details from the durable share. The host re-writes them
