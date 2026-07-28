@@ -1,0 +1,74 @@
+name: Release bluefin-vm
+
+# Cuts a tool release: on a `v*` tag, build the `bluefin-vm` binary on a native
+# Apple-Silicon runner and attach a prebuilt tarball (+ sha256) to the GitHub
+# Release. This is the artifact the Homebrew tap fetches -- it ships the TOOL,
+# not the seed, so the seed's hosting (R2, manual) is independent of releases.
+# The build runs bin/package-cli.sh, the same script used locally, so the
+# release artifact is identical to one built by hand.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write   # create the GitHub Release and upload assets
+
+jobs:
+  release:
+    # macos-14+ hosted runners are Apple Silicon -> a native aarch64-apple-darwin
+    # build, no cross-compile. (The disk-image workflow's arm64 runner is Linux.)
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show host arch (sanity check)
+        run: uname -m   # expect: arm64
+
+      # The tag drives the version; strip the leading `v` for the crate/asset.
+      - name: Resolve version from the tag
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+          echo "VERSION=${tag#v}" >> "$GITHUB_ENV"
+
+      # A tag must match the crate it ships -- otherwise the asset name, the
+      # formula, and Cargo.toml drift apart.
+      - name: Guard tag against Cargo.toml
+        run: |
+          crate=$(sed -n 's/^version = "\(.*\)"/\1/p' cli/Cargo.toml | head -n1)
+          if [ "$crate" != "$VERSION" ]; then
+            echo "::error::tag $TAG implies version $VERSION but cli/Cargo.toml is $crate"
+            exit 1
+          fi
+
+      - name: Package the release binary
+        id: pkg
+        run: |
+          ./bin/package-cli.sh
+          asset="bluefin-vm-${VERSION}-aarch64-apple-darwin.tar.gz"
+          sha=$(awk '{print $1}' "output/${asset}.sha256")
+          {
+            echo "asset=$asset"
+            echo "sha256=$sha"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publish the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            output/${{ steps.pkg.outputs.asset }}
+            output/${{ steps.pkg.outputs.asset }}.sha256
+          # The tap formula pins the url + sha256 below. release.yml surfaces
+          # them here so bumping Formula/bluefin-vm.rb is copy-paste.
+          body: |
+            Prebuilt `bluefin-vm` for Apple Silicon (arm64 macOS).
+
+            Homebrew tap formula fields for this release:
+
+            ```ruby
+            url "https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/${{ steps.pkg.outputs.asset }}"
+            sha256 "${{ steps.pkg.outputs.sha256 }}"
+            ```

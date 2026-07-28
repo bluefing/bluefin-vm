@@ -32,6 +32,14 @@ run *args:
 run-release *args:
   cd cli && cargo run --release -- {{args}}
 
+# Wraps bin/package-cli.sh; the release workflow runs that same script, so a
+# local package matches a released one.
+[doc('Package the release binary into a Homebrew tarball (output/*.tar.gz + .sha256); forwards ARGS')]
+[no-cd]
+[group('build & run')]
+package *args:
+  ./bin/package-cli.sh {{args}}
+
 # --- quality gate -----------------------------------------------------------
 
 # Format the Rust code in place
