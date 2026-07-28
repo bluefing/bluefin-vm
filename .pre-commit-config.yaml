@@ -46,6 +46,16 @@ repos:
         pass_filenames: false
         always_run: true
 
+      # Rust gate for the cli crate -- runs `just cli check` (fmt, clippy,
+      # test). always_run so it can't be silently skipped by file matching;
+      # cargo is incremental, so it's cheap when nothing changed.
+      - id: rust
+        name: rust (just cli check)
+        entry: just cli check
+        language: system
+        pass_filenames: false
+        always_run: true
+
   # --- Commit message format (conventional commits) ---
   # commitlint: rules in .commitlintrc.yaml extend
   # @commitlint/config-conventional with header-max-length: 80 and

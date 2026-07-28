@@ -9,10 +9,15 @@ mod tart '.just/tart'
 [group('image-build')]
 mod build '.just/build'
 
-# Run the bats test suite (no container builds)
+# The `bluefin-vm` downloader/runner tool (Rust)
+[group('cli')]
+mod cli '.just/cli'
+
+# Run the test suite: bats (offline) + the cli's Rust unit tests
 [group('test')]
 test:
   bats tests
+  just cli test
 
 # Run all pre-commit hooks on all files (shellcheck, shfmt, yaml, tests, ...)
 [group('test')]
