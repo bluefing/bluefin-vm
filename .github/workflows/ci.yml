@@ -1,0 +1,35 @@
+name: CI
+
+# The same gate the local hooks run, but authoritative: it can't be bypassed
+# with `--no-verify` or skipped by a rebase. Runs the full pre-commit suite on
+# every push and PR. shellcheck/shfmt/hadolint are pinned by pre-commit itself,
+# and the Rust toolchain by rust-toolchain.toml, so CI and local are identical
+# -- no version skew. Arch-independent; only the image build needs an ARM runner.
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: extractions/setup-just@v2
+
+      # bats is the only hook tool pre-commit doesn't manage; shellcheck/shfmt/
+      # hadolint come as pinned pre-commit environments, and Rust from
+      # rust-toolchain.toml (auto-installed on first cargo use).
+      - name: Install bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+
+      - name: Install pre-commit
+        run: pipx install pre-commit
+
+      - name: Run the pre-commit gate
+        run: pre-commit run --all-files --show-diff-on-failure

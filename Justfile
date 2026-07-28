@@ -13,6 +13,13 @@ mod tart '.just/tart'
 [group('image-build')]
 mod build '.just/build'
 
+# First-time setup after cloning: install the git hooks (pre-commit, commit-msg,
+# pre-push). Needs pre-commit itself (brew install pre-commit).
+[doc('Install the git hooks -- run once after cloning')]
+[group('setup')]
+setup:
+  pre-commit install
+
 # Run the test suite: bats (offline) + the cli's Rust unit tests
 [group('test')]
 test: cli::test

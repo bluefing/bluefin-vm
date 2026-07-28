@@ -1,8 +1,16 @@
-# Install the hooks:      pre-commit install   (sets up pre-commit + commit-msg)
+# Install the hooks:      just setup   (or: pre-commit install)
 # Run against everything:  pre-commit run --all-files
 # Skip once (emergency):   git commit --no-verify
+#
+# shellcheck/shfmt/hadolint are pinned by pre-commit (not system tools), so a
+# local run and CI run use the *identical* version -- no version skew.
 minimum_pre_commit_version: "3.0.0"
-default_install_hook_types: [pre-commit, commit-msg]
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
+# Hooks run at commit unless they opt into more. The non-mutating validators
+# also run at pre-push as a backstop -- a rebase or `--no-verify` skips the
+# commit-time run, and pre-push catches it before it reaches the remote. The
+# fixers stay commit-only, so a push never mutates the working tree.
+default_stages: [pre-commit]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -12,49 +20,58 @@ repos:
       - id: end-of-file-fixer
       - id: mixed-line-ending
       - id: check-merge-conflict
-      - id: check-yaml            # validates the GitHub Actions workflow
+        stages: [pre-commit, pre-push]   # rebases can leave markers behind
+      - id: check-yaml            # validates the GitHub Actions workflows
       - id: check-executables-have-shebangs
       - id: check-shebang-scripts-are-executable
       - id: check-added-large-files
         args: ["--maxkb=1024"]     # keep multi-GB images/bundles out of git
+        stages: [pre-commit, pre-push]
 
-  # Shell linting/formatting via the already-installed system tools.
-  - repo: local
+  # Shell + Dockerfile lint/format -- version pinned by pre-commit (python
+  # wheels that bundle the binary), so local and CI are identical.
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
     hooks:
       - id: shellcheck
-        name: shellcheck
-        entry: shellcheck -S warning
-        language: system
-        types: [shell]
+        args: ["-S", "warning"]
+        stages: [pre-commit, pre-push]
 
+  - repo: https://github.com/maxwinterstein/shfmt-py
+    rev: v4.0.0
+    hooks:
       - id: shfmt
-        name: shfmt
-        entry: shfmt -i 2 -ci -w
-        language: system
-        types: [shell]
+        args: ["-i", "2", "-ci", "-w"]
 
+  - repo: https://github.com/AleksaC/hadolint-py
+    rev: v2.14.0
+    hooks:
       - id: hadolint
-        name: hadolint
-        entry: hadolint
-        language: system
         files: (^|/)Containerfile$
+        types: [file]
+        stages: [pre-commit, pre-push]
 
+  - repo: local
+    hooks:
       - id: tests
         name: bats test suite
         entry: bats tests
         language: system
         pass_filenames: false
         always_run: true
+        stages: [pre-commit, pre-push]
 
       # Rust gate for the cli crate -- runs `just cli check` (fmt, clippy,
       # test). always_run so it can't be silently skipped by file matching;
-      # cargo is incremental, so it's cheap when nothing changed.
+      # cargo is incremental, so it's cheap when nothing changed. The toolchain
+      # is pinned in rust-toolchain.toml so fmt/clippy can't skew.
       - id: rust
         name: rust (just cli check)
         entry: just cli check
         language: system
         pass_filenames: false
         always_run: true
+        stages: [pre-commit, pre-push]
 
   # --- Commit message format (conventional commits) ---
   # commitlint: rules in .commitlintrc.yaml extend
