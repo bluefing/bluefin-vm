@@ -63,11 +63,16 @@ if [ -z "$tag" ]; then
   exit 1
 fi
 
-# Word-split $build_arg happens at the call site, so both engines see the
-# same argv (mirrors build-disk.sh's config_mount handling). BASE is the
-# Containerfile's ARG name, not a shell variable.
-build_arg=""
-[ -n "$base" ] && build_arg="--build-arg BASE=$base"
+# Word-split $build_arg happens at the call site, so both engines see the same
+# argv (mirrors build-disk.sh's config_mount handling). These are Containerfile
+# ARG names, not shell variables.
+#
+# Build identity for the image's /usr/lib/bluefin-vm/build-info stamp: prefer
+# CI's env, else git; refs/shas carry no spaces, so word-splitting is safe.
+build_ref="${GITHUB_REF_NAME:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)}"
+build_sha="${GITHUB_SHA:-$(git rev-parse HEAD 2>/dev/null || echo unknown)}"
+build_arg="--build-arg BUILD_REF=$build_ref --build-arg BUILD_SHA=$build_sha"
+[ -n "$base" ] && build_arg="$build_arg --build-arg BASE=$base"
 
 run_cmd() {
   if [ -n "$dryrun" ]; then

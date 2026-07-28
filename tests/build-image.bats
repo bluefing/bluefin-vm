@@ -33,3 +33,10 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"--build-arg BASE=ghcr.io/example/base:tag"* ]]
 }
+
+@test "dry-run stamps build identity (ref + commit) as build args" {
+  run ./bin/build-image.sh -n -t localhost/x:y
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"--build-arg BUILD_REF="* ]]
+  [[ "$output" == *"--build-arg BUILD_SHA="* ]]
+}

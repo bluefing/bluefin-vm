@@ -5,6 +5,19 @@
 ARG BASE=ghcr.io/ublue-os/bluefin:lts-testing-50-arm64
 FROM ${BASE}
 
+# Re-declared so the RUN layers below can read them; BUILD_REF/BUILD_SHA are the
+# git ref and commit that bin/build-image.sh passes in.
+ARG BASE
+ARG BUILD_REF=unknown
+ARG BUILD_SHA=unknown
+
+# 0. Build identity: stamp the source ref, commit, and base image so any seed
+#    self-identifies (`cat /usr/lib/bluefin-vm/build-info`) regardless of how it
+#    is later named or published. No timestamp -- keeps the layer reproducible.
+RUN mkdir -p /usr/lib/bluefin-vm && \
+    printf 'ref=%s\ncommit=%s\nbase=%s\n' "$BUILD_REF" "$BUILD_SHA" "$BASE" \
+      > /usr/lib/bluefin-vm/build-info
+
 # 1. Clipboard: the packaged spice-vdagent user unit is static and GNOME 50
 #    ignores its legacy autostart entry, so nothing starts the agent. Wire it
 #    into graphical sessions -- conditionally (installs without a SPICE
