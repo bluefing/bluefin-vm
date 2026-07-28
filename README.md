@@ -23,15 +23,25 @@ full-screened, you can't tell it isn't bare metal.
 
 ## Quick start
 
-```bash
-# Run Bluefin in a VM — builds what's missing, then launches detached:
-just tart up-patched    # recommended: derived image, zero guest setup
-just tart up            # stock upstream image (needs one-time guest setup)
+Two ways to a running VM. **Download a pre-built seed** — fastest, no local
+build: `up` fetches the published patched seed, imports it into Tart, and boots
+detached.
 
-# Just build a disk, don't launch:
-just build raw          # or: iso / qcow2
+```bash
+just cli run-release up
+```
+
+**Or build it yourself** from the upstream container:
+
+```bash
+just tart up-patched    # derived image, zero guest setup
+just tart up            # stock upstream image (needs one-time guest setup)
+just build raw          # build a disk only, don't launch (or: iso / qcow2)
 just build raw -i ghcr.io/<org>/<image>:<tag>   # override the source image
 ```
+
+`up` shells out to `tart`; the VM it produces is identical to a built one, so
+[Running the VM](#running-the-vm) applies either way.
 
 ## Which image
 
@@ -208,7 +218,7 @@ wiring. No container builds, no network. The lint gate needs the system
 tools (`brew install bats-core shellcheck shfmt hadolint pre-commit`):
 
 ```bash
-just test        # bats — fast inner loop
+just test        # bats + the cli's Rust unit tests — fast inner loop
 just lint        # pre-commit run --all-files: shellcheck, shfmt, hadolint, tests, ...
 ```
 

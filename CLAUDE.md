@@ -25,16 +25,16 @@ File map + per-file reference: [docs/FILES.md](docs/FILES.md).
 
 ## Verify a change
 
-- Fast: `just test` (bats) + `just lint` (pre-commit). `bin/build-disk.sh -n`
-  inspects build commands without running them.
+- Fast: `just test` (bats + cli tests) + `just lint` (pre-commit).
+  `bin/build-disk.sh -n` inspects build commands without running them.
 - A built disk's boot isn't checked by `just test` — confirm in a VM:
   `just tart up` (or `up-patched` for the derived image).
 
 ## Working style (how to respond)
 
 - Explaining a file/recipe: lead with **scope** (universal, or specific to
-  the build step / the runtime / one format?), then **purpose** (one line),
-  then detail only if needed.
+  the build step / the runtime / the cli tool / one format?), then **purpose**
+  (one line), then detail only if needed.
 - Calibrate the prose: clear and complete — neither bloated nor cryptic
   shorthand.
 - Comments in scripts/config say **why, not what** — and only where the code

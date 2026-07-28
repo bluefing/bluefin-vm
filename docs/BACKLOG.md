@@ -48,6 +48,23 @@ Finished stories move to **Done** with the date.
   and produced a 22 GB raw regardless, so the default may now suffice.
   Investigate the current bootc-image-builder schema before changing anything.
 
+### BL-12 — `bluefin-vm` tool: seed → running VM pipeline  ·  `ready` · `M`
+
+**As** a Mac user,
+**I want** one command to turn a published seed into a running Bluefin VM,
+**so that** I never touch the build plumbing by hand.
+
+- **Acceptance:**
+  - [x] `download` — resumable, checksum-verified fetch of the seed zip.
+  - [ ] `extract` — stream `image/disk.raw` out of the zip (zip64 + deflate).
+  - [ ] `import` — port `create-vm.sh`: `tart create --linux`, APFS-clone the
+        raw into the VM, set cpu/memory/display + `--display-refit`.
+  - [ ] `up` — chain download → extract → import → `tart run` (detached, with
+        the durable share attached).
+- **Notes:** `import`/`up` shell out to `tart`; the brew formula must depend on
+  it (BL-7). Provisioning the user's account is out of scope here — until BL-8
+  lands, `up` boots to the baked test login.
+
 ---
 
 ## Backlog
@@ -120,6 +137,9 @@ Finished stories move to **Done** with the date.
         version scheme.
   - [ ] Formula requested in the `ublue-os` tap; `brew install` → first boot
         works end to end.
+  - [ ] Formula declares its runtime dependency on Tart
+        (`depends_on "cirruslabs/cli/tart"`) — the tool shells out to `tart`
+        for import and run, so brew must pull it in.
 - **Notes:** Product rule: shipped tooling must never implicitly replace an
   existing VM — if a VM exists, boot it; re-seed only via an explicit reset.
 

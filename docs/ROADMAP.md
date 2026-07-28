@@ -49,7 +49,7 @@ hand.
 
 1. **Seamlessness:** retina crispness, GPU smoothness, dynamic resolution —
    the full parity audit against the goal.
-2. **Brew package shape — decided 2026-07-28:** a thin Go downloader tool
+2. **Brew package shape — decided 2026-07-28:** a thin Rust downloader tool
    (see Decided).
 3. **Publish pipeline:** seeds live in R2 at `projectbluefin.dev` (done);
    still open: versioning, and wiring the bucket to build/host from releases.

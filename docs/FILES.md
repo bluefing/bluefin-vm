@@ -140,8 +140,8 @@ porcelain = recipes.
 
 ### Detail
 
-- `Justfile` imports `_config`/`_common` and declares the `build` / `tart`
-  modules plus `test` / `lint` / `clean`.
+- `Justfile` imports `_config`/`_common` and declares the `build` / `tart` /
+  `cli` modules plus `test` / `lint` / `clean`.
 - `up` is incremental: build only if the disk is absent, re-import only if
   the disk is newer than the VM's copy (which replaces VM state), then
   start. `up-patched` always rebuilds from the derived image.
@@ -152,6 +152,32 @@ porcelain = recipes.
   `default_name`, `default_ref`, `default_share`, `patched_image`.
 - Module recipes use `[no-cd]` so they run from the repo root, where the
   scripts expect to be.
+
+## cli/
+
+### Scope
+
+The `bluefin-vm` tool — the Rust consumer binary a user installs (later via
+brew), distinct from the image-build plumbing in `bin/`.
+
+### Purpose
+
+Turn a published seed into a running Bluefin VM: download → extract → import →
+run.
+
+### Detail
+
+- `src/core/` is UI-agnostic (nothing prints or draws): `download` (resumable,
+  checksummed), `extract` (streams `image/disk.raw` out of the seed zip),
+  `tart` (import + run — a port of `create-vm.sh`). A future ratatui TUI drives
+  the same core the CLI does.
+- `src/main.rs` is the clap front-end: `up` runs the whole pipeline; `download`
+  / `extract` / `import` expose the individual steps for debugging.
+- Driven by the `cli` module (`just cli run-release up`, `just cli check`); the
+  pre-commit `rust` hook runs `just cli check`, so that recipe is the single
+  source of truth for "is the crate clean".
+- Shells out to `tart` at runtime, so the brew formula must depend on it
+  (BACKLOG BL-7).
 
 ## Supporting files
 
