@@ -114,14 +114,18 @@ step; `config.toml` still applies on top.
 
 Own everything OS-side a VM guest needs: the clipboard-agent session wiring
 (ordered, VM-conditional), sshd enabled, the host-share mount
-(condition-gated so share-less boots stay clean), and the `/etc/skel`
-`~/Shared` symlink.
+(condition-gated so share-less boots stay clean), the `/etc/skel`
+`~/Shared` symlink, and first-boot provisioning of the user's account (BL-8).
 
 ### Detail
 
 - Built into the container store by `bin/build-image.sh` (`just build image`),
   then consumed as a `localhost/` ref.
 - One-shot: `just tart up-patched` (always rebuilds; replaces VM state).
+- First-boot provisioning (`provision.sh` run by `bluefin-vm-provision.service`):
+  creates the account the host wrote into the share, then clears it.
+  `bluefin-vm-harden` is the opt-in lock-down. Credential model lives in
+  `provision.sh`.
 - As upstream adopts the fixes (BL-1), this layer shrinks.
 
 ## Justfile + .just/
@@ -163,16 +167,17 @@ brew), distinct from the image-build plumbing in `bin/`.
 ### Purpose
 
 Turn a published seed into a running Bluefin VM: download → extract → import →
-run.
+provision → run.
 
 ### Detail
 
 - `src/core/` is UI-agnostic (nothing prints or draws): `download` (resumable,
   checksummed), `extract` (streams `image/disk.raw` out of the seed zip),
-  `tart` (import + run — a port of `create-vm.sh`). A future ratatui TUI drives
-  the same core the CLI does.
+  `tart` (import + run — a port of `create-vm.sh`), `provision` (writes the
+  first-boot account into the share). A future ratatui TUI drives the same core
+  the CLI does.
 - `src/main.rs` is the clap front-end: `up` runs the whole pipeline; `download`
-  / `extract` / `import` expose the individual steps for debugging.
+  / `extract` / `import` / `provision` expose the individual steps for debugging.
 - Driven by the `cli` module (`just cli run-release up`, `just cli check`); the
   pre-commit `rust` hook runs `just cli check`, so that recipe is the single
   source of truth for "is the crate clean".
@@ -191,4 +196,5 @@ run.
   `bin/build-disk.sh` on an ARM64 runner (patched build by default) and uploads the
   disk as an artifact.
 - `README.md` — user-facing source of truth. `CLAUDE.md` — agent overlay.
-  `docs/ROADMAP.md` (decisions/questions), `docs/BACKLOG.md` (stories).
+  `docs/ROADMAP.md` (decisions/questions), `docs/BACKLOG.md` (stories),
+  `docs/PROVISIONING.md` (first-boot provisioning: design + rationale).

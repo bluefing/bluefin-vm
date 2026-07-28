@@ -143,21 +143,6 @@ Finished stories move to **Done** with the date.
 - **Notes:** Product rule: shipped tooling must never implicitly replace an
   existing VM — if a VM exists, boot it; re-seed only via an explicit reset.
 
-### BL-8 — Spike: first-boot provisioning via the durable share  ·  `backlog` · `M`
-
-**As** a Mac user,
-**I want** the VM to create *my* account on first boot,
-**so that** a downloaded seed feels personal — without a greeter.
-
-- **Acceptance:**
-  - [ ] The image ships a oneshot service (ordered after the share mount,
-        conditioned on a provision file in the share) that creates the user
-        — username, ssh public key, optional autologin — then removes the
-        file.
-  - [ ] Host tooling writes the provision file before first boot.
-  - [ ] No file → fallback to the baked test login.
-  - [ ] Secrets stance: public keys only; no passwords through the share.
-
 ### BL-13 — Dev env: use host ssh keys / YubiKey *from* the guest  ·  `backlog` · `M`
 
 **As** a developer,
@@ -175,6 +160,43 @@ Finished stories move to **Done** with the date.
 - **Notes:** Distinct from provisioning (BL-8), which installs a *public* key to
   get you *into* the VM. This is using keys *from* it. Nothing host-specific is
   baked into the seed.
+
+### BL-14 — Provisioning: robust ssh-key selection  ·  `backlog` · `S`
+
+**As** a user with non-standard or multiple ssh keys,
+**I want** provisioning to find or let me choose the right public key,
+**so that** `up` installs my key without me hand-specifying it each time.
+
+- **Acceptance:**
+  - [ ] Auto-detect beyond the three fixed names: use a single non-standard
+        `~/.ssh/*.pub`; don't guess when several exist.
+  - [ ] A configurable default (e.g. `BLUEFIN_VM_SSH_KEY`) so FIDO/multi-key
+        users set it once.
+  - [ ] The interactive TUI, when it lands, lets the user pick among keys
+        rather than the tool guessing.
+  - [ ] `--ssh-key` stays the explicit override.
+- **Notes:** Today `default_ssh_key()` matches only
+  `id_ed25519|id_ecdsa|id_rsa.pub`; FIDO `sk` keys and multi-key setups need
+  `--ssh-key` (and `sk` keys need the token present to authenticate — expected).
+
+### BL-15 — Provisioning: GUI polkit auth for the password-less account  ·  `backlog` · `S`
+
+**As** a user of a provisioned VM,
+**I want** graphical privilege prompts (polkit) to work for my password-less account,
+**so that** GUI admin actions aren't blocked by a password I don't have.
+
+- **Acceptance:**
+  - [ ] Decide: a scoped polkit rule (`/etc/polkit-1/rules.d/`) letting the
+        provisioned user authorise admin actions without a password — mirroring
+        the passwordless-sudo posture — vs. leaving it to `bluefin-vm-harden`
+        (set a password → polkit works).
+  - [ ] If a rule: scope it to the provisioned user, consistent with the
+        per-user sudoers approach.
+  - [ ] Verify a GUI-gated admin action works on the autologin desktop.
+- **Notes:** The passwordless-sudo drop-in covers CLI `sudo` only; polkit is a
+  separate mechanism (PROVISIONING.md Limits). Same "no password" root cause as
+  autologin / passwordless-sudo / lock-disable — the one such consequence not
+  yet handled. Narrow in practice (much Bluefin admin is CLI or Flatpak).
 
 ---
 
@@ -212,4 +234,16 @@ Finished stories move to **Done** with the date.
 
 ## Done
 
-*(none yet — move finished stories here with a completion date)*
+### BL-8 — First-boot provisioning via the durable share  ·  `done` 2026-07-28 · `M`
+
+A downloaded seed is personalised at first boot: the host writes the account
+into the share (`core::provision` / `bluefin-vm provision`, called by `up`); a
+gated oneshot (`bluefin-vm-provision.service` + `image/provision.sh`) creates
+it, then clears the file. Credential model: pubkey-only → autologin + a scoped
+passwordless-sudo drop-in (`bluefin-vm-harden` reverts it). No provision file →
+the baked test login.
+
+**Live-verified 2026-07-28** on a patched-image boot: the oneshot ran and
+cleared the share, key-based ssh worked under enforcing SELinux, scoped
+passwordless sudo worked, autologin reached the desktop (seat0 session), and
+the account password is locked.

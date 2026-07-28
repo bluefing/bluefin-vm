@@ -35,7 +35,11 @@ hand.
   ~11 MiB, too fragile as the image grows).
 - **Upstreaming:** the repo moves into `ublue-os` when ready (Jorge offered;
   user-paced — prove on the personal repo first).
-- **First run: no greeter.** The VM boots to a usable desktop.
+- **First run: no greeter, provisioned to the user.** The host writes the
+  account (username + ssh public key) into the share pre-boot; a guest oneshot
+  creates it on first boot and the VM autologs in. Pubkey-only, no password —
+  hence autologin (desktop) plus a scoped passwordless-sudo rule (admin), the
+  disposable-dev-VM posture. No provision data → the baked test login. (BL-8.)
 
 ## Proposed
 
@@ -53,9 +57,9 @@ hand.
    (see Decided).
 3. **Publish pipeline:** seeds live in R2 at `projectbluefin.dev` (done);
    still open: versioning, and wiring the bucket to build/host from releases.
-4. **First-boot account creation:** downloaded seeds are identical for
-   every user, so the account cannot come from build time — it must be
-   created at first boot or injected by host tooling.
+4. **First-boot account creation — decided 2026-07-28:** host tooling writes
+   the account into the share; a guest oneshot creates it on first boot (see
+   Decided, BL-8).
 5. **Gatekeeper:** does a downloaded artifact open without quarantine
    friction?
 6. **Disk sizing:** is a 20 GiB root the right default? User-resizable?
