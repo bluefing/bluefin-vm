@@ -36,8 +36,13 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"--type qcow2"* ]]
   [[ "$output" == *"ghcr.io/example/img:tag"* ]]
-  [[ "$output" == *"--platform linux/arm64"* ]]
   [[ "$output" == *"/config.toml:ro"* ]]
+  # --platform is a Docker-path detail (macOS/Colima). The Linux+Podman path
+  # (CI) builds natively and omits it, so only assert it when build-disk.sh
+  # would pick Docker -- mirroring the script's own engine check.
+  if ! { [ "$(uname -s)" = Linux ] && command -v podman >/dev/null 2>&1; }; then
+    [[ "$output" == *"--platform linux/arm64"* ]]
+  fi
 }
 
 @test "dry-run passes a custom image and iso type through" {
