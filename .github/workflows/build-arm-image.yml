@@ -41,6 +41,11 @@ jobs:
       - name: Show host arch (sanity check)
         run: uname -m   # expect: aarch64
 
+      # Short commit for a self-describing, collision-free artefact name.
+      - name: Short SHA
+        id: vars
+        run: echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
       # Both scripts auto-select Podman on Linux; rootful storage needs sudo.
       - name: Build the derived image
         if: env.PATCHED == 'true'
@@ -65,7 +70,10 @@ jobs:
       - name: Upload image
         uses: actions/upload-artifact@v4
         with:
-          name: bluefin-vm-${{ env.FORMAT }}-arm64
+          # <format>-arm64-<patched|stock>-<ref>-<shortsha>: self-describing and
+          # collision-free. This is the GitHub artefact label only -- the files
+          # inside stay disk.raw, and the R2/tool URL is a separate stable name.
+          name: bluefin-vm-${{ env.FORMAT }}-arm64-${{ env.PATCHED == 'true' && 'patched' || 'stock' }}-${{ github.ref_name }}-${{ steps.vars.outputs.sha }}
           path: output/**
           if-no-files-found: error
           # Disk images are multi-GB; keep retention short.
