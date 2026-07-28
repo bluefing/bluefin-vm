@@ -71,7 +71,7 @@ fi
 # Dry runs stay offline-testable (bats, CI) -- only real runs need tart.
 if [ -z "$dryrun" ]; then
   command -v tart >/dev/null 2>&1 || {
-    echo "Error: tart not installed (brew install cirruslabs/cli/tart)." >&2
+    echo "Error: tart not installed (brew install openai/tools/tart)." >&2
     exit 1
   }
 fi
