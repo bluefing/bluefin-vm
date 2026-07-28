@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# First-boot provisioning for a downloaded (generic) seed. The host writes the
+# account details into the durable share before boot; this oneshot creates that
+# account so a shipped seed feels personal, without a greeter. With no details
+# present the service is condition-skipped and the baked test login stays the
+# way in.
+#
+# Credential model (BACKLOG BL-8, README "First-boot provisioning"): public key
+# only, no password. A password-less account can't be reached through a greeter
+# and can't sudo, so usability comes from three things together -- the ssh key
+# (terminal), autologin (desktop), and a scoped passwordless-sudo rule (admin).
+# That is the disposable-dev-VM posture: the VM is throwaway and holds no
+# durable secrets (those live host-side in the share).
+set -euo pipefail
+
+pdir=/var/mnt/shared/bluefin-share/.bluefin-vm
+user=$(<"$pdir/username")
+
+# Validate before creating anything: a malformed name would otherwise land in a
+# sudoers.d file and break sudo for the whole VM.
+if [[ ! $user =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
+  echo "bluefin-vm-provision: invalid username '$user'" >&2
+  exit 1
+fi
+
+# wheel = admin; /etc/skel gives the home its ~/Shared symlink and dotfiles.
+id "$user" &>/dev/null || useradd --create-home --groups wheel "$user"
+home=$(getent passwd "$user" | cut -d: -f6)
+
+# Public key(s): the only way in over ssh, since the account has no password.
+if [[ -s $pdir/authorized_keys ]]; then
+  install -d -m 700 -o "$user" -g "$user" "$home/.ssh"
+  install -m 600 -o "$user" -g "$user" \
+    "$pdir/authorized_keys" "$home/.ssh/authorized_keys"
+  # Label as ssh_home_t where SELinux is active (the VM); a no-op elsewhere.
+  # The guard's own failure is exempt from set -e; restorecon's is not.
+  [[ -f /sys/fs/selinux/enforce ]] && restorecon -R "$home/.ssh"
+fi
+
+# Scoped passwordless sudo: without it a password-less account can administer
+# nothing (sudo and polkit both want a password it doesn't have).
+sudoers="/etc/sudoers.d/bluefin-vm-$user"
+printf '%s ALL=(ALL) NOPASSWD:ALL\n' "$user" >"$sudoers"
+chmod 440 "$sudoers"
+
+# Autologin (no greeter) when the host asked for it -- a password-less account
+# is only reachable at the desktop this way. Edit in place with configparser so
+# any settings the base image ships in custom.conf survive.
+if [[ -e $pdir/autologin ]]; then
+  python3 - "$user" <<'PY'
+import configparser, os, sys
+user = sys.argv[1]
+path = "/etc/gdm/custom.conf"
+cfg = configparser.ConfigParser()
+cfg.optionxform = str  # keep key case (GDM is case-sensitive)
+if os.path.exists(path):
+    cfg.read(path)
+if not cfg.has_section("daemon"):
+    cfg.add_section("daemon")
+cfg["daemon"]["AutomaticLoginEnable"] = "true"
+cfg["daemon"]["AutomaticLogin"] = user
+os.makedirs("/etc/gdm", exist_ok=True)
+with open(path, "w") as f:
+    cfg.write(f)
+PY
+fi
+
+# Applied -- clear the details from the durable share. The host re-writes them
+# for the next fresh seed, and nothing sensitive lingers (public key only).
+rm -rf "$pdir"

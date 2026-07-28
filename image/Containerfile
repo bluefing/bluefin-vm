@@ -46,3 +46,18 @@ RUN printf 'enable sshd.service\n' > /usr/lib/systemd/system-preset/45-bluefin-v
     mkdir -p /usr/lib/systemd/system/multi-user.target.wants && \
     ln -s ../var-mnt-shared.mount \
       /usr/lib/systemd/system/multi-user.target.wants/var-mnt-shared.mount
+
+# 5. First-boot provisioning (BL-8): a oneshot that, when the host has written
+#    account details into the share, creates the user so a downloaded seed
+#    feels personal. Gated on the details file (absent => skipped, baked login
+#    stays); ordered After= the share mount so the file is visible, and Before=
+#    login/greeter so the account and its autologin exist first. provision.sh
+#    carries the credential-model rationale. bluefin-vm-harden is the opt-in
+#    lock-down (password + drop the passwordless-sudo rule).
+COPY provision.sh /usr/libexec/bluefin-vm-provision
+COPY harden.sh /usr/bin/bluefin-vm-harden
+RUN chmod 0755 /usr/libexec/bluefin-vm-provision /usr/bin/bluefin-vm-harden && \
+    printf '[Unit]\nDescription=First-boot provisioning from the host share (bluefin-vm)\nConditionPathExists=/var/mnt/shared/bluefin-share/.bluefin-vm/username\nAfter=var-mnt-shared.mount\nBefore=gdm.service systemd-user-sessions.service\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStart=/usr/libexec/bluefin-vm-provision\n\n[Install]\nWantedBy=multi-user.target\n' \
+      > /usr/lib/systemd/system/bluefin-vm-provision.service && \
+    ln -s ../bluefin-vm-provision.service \
+      /usr/lib/systemd/system/multi-user.target.wants/bluefin-vm-provision.service
