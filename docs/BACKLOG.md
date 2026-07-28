@@ -48,23 +48,6 @@ Finished stories move to **Done** with the date.
   and produced a 22 GB raw regardless, so the default may now suffice.
   Investigate the current bootc-image-builder schema before changing anything.
 
-### BL-12 — `bluefin-vm` tool: seed → running VM pipeline  ·  `ready` · `M`
-
-**As** a Mac user,
-**I want** one command to turn a published seed into a running Bluefin VM,
-**so that** I never touch the build plumbing by hand.
-
-- **Acceptance:**
-  - [x] `download` — resumable, checksum-verified fetch of the seed zip.
-  - [ ] `extract` — stream `image/disk.raw` out of the zip (zip64 + deflate).
-  - [ ] `import` — port `create-vm.sh`: `tart create --linux`, APFS-clone the
-        raw into the VM, set cpu/memory/display + `--display-refit`.
-  - [ ] `up` — chain download → extract → import → `tart run` (detached, with
-        the durable share attached).
-- **Notes:** `import`/`up` shell out to `tart`; the brew formula must depend on
-  it (BL-7). Provisioning the user's account is out of scope here — until BL-8
-  lands, `up` boots to the baked test login.
-
 ---
 
 ## Backlog
@@ -124,24 +107,34 @@ Finished stories move to **Done** with the date.
 - **Notes:** Only personalises locally built seeds — downloaded seeds need
   BL-8.
 
-### BL-7 — Decide the brew package shape; request it in the tap  ·  `backlog` · `M`
+### BL-7 — Ship `bluefin-vm` via a Homebrew tap  ·  `ready` · `M`
 
 **As** a Mac user,
 **I want** `brew install` to hand me the Bluefin VM experience,
 **so that** setup is one command.
 
 - **Acceptance:**
-  - [ ] Package shape decided (ROADMAP question 2), including the
-        update/VM-state story.
-  - [ ] The artifact it fetches or builds exists somewhere stable with a
-        version scheme.
-  - [ ] Formula requested in the `ublue-os` tap; `brew install` → first boot
-        works end to end.
-  - [ ] Formula declares its runtime dependency on Tart
-        (`depends_on "cirruslabs/cli/tart"`) — the tool shells out to `tart`
-        for import and run, so brew must pull it in.
-- **Notes:** Product rule: shipped tooling must never implicitly replace an
-  existing VM — if a VM exists, boot it; re-seed only via an explicit reset.
+  - [x] Package shape decided (ROADMAP): a prebuilt arm64 binary — the **tool**,
+        not the seed — attached to a GitHub Release, versioned by `v*` tag. The
+        tool downloads the seed at runtime, so seed hosting stays decoupled (no
+        R2 dependency in the formula). GH Releases fits the ~1.6 MB tool; the
+        size objection was about the multi-GB seed.
+  - [x] Release automation: `.github/workflows/release.yml` builds + uploads the
+        tarball and `.sha256` on a `v*` tag, via `bin/package-cli.sh` (local and
+        CI produce the identical artifact); the tag is guarded against
+        `cli/Cargo.toml`.
+  - [x] Formula authored (`packaging/homebrew/bluefin-vm.rb`): declares
+        `depends_on "openai/tools/tart"` (the tool shells out to `tart`) and
+        pins to arm64.
+  - [ ] Own tap published (`bluefing/homebrew-tap`, `Formula/bluefin-vm.rb`) and
+        the first `v*` release cut; `brew install bluefing/tap/bluefin-vm` →
+        `bluefin-vm up` → first boot verified end to end on a clean Mac.
+  - [ ] Update / VM-state story documented: `brew upgrade` replaces the tool
+        only, never the VM (product rule below); re-seed stays an explicit reset.
+- **Notes:** Own tap first, to iterate without upstream review; move to the
+  `ublue-os` tap once stable. Product rule: shipped tooling must never
+  implicitly replace an existing VM — if a VM exists, boot it; re-seed only via
+  an explicit reset.
 
 ### BL-13 — Dev env: use host ssh keys / YubiKey *from* the guest  ·  `backlog` · `M`
 
@@ -233,6 +226,20 @@ Finished stories move to **Done** with the date.
 ---
 
 ## Done
+
+### BL-12 — `bluefin-vm` tool: seed → running VM pipeline  ·  `done` 2026-07-29 · `M`
+
+One command turns a published seed into a running VM: `up` chains `download`
+(resumable, checksum-verified) → `extract` (streams `image/disk.raw` out of the
+zip64 archive) → `import` (ports `create-vm.sh`: `tart create --linux`,
+APFS-clone the raw in, set cpu/memory/display + `--display-refit`) → provision →
+`tart run` detached with the durable share attached. The individual steps are
+also exposed as subcommands for debugging. `import`/`up` shell out to `tart`
+(BL-7's formula depends on it).
+
+The import → provision → boot leg was live-verified as part of BL-8
+(2026-07-28). End-to-end from the published R2 seed (download → extract) is the
+clean-Mac check folded into BL-7.
 
 ### BL-8 — First-boot provisioning via the durable share  ·  `done` 2026-07-28 · `M`
 

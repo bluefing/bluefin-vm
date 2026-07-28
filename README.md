@@ -43,6 +43,36 @@ just build raw -i ghcr.io/<org>/<image>:<tag>   # override the source image
 `up` shells out to `tart`; the VM it produces is identical to a built one, so
 [Running the VM](#running-the-vm) applies either way.
 
+## Install with Homebrew
+
+The shipped path installs the `bluefin-vm` tool from a Homebrew tap; the tool
+then fetches the seed and boots a VM:
+
+```bash
+brew install bluefing/tap/bluefin-vm
+bluefin-vm up
+```
+
+The formula ships a prebuilt arm64 binary attached to a GitHub Release (cut by
+pushing a `v*` tag — `.github/workflows/release.yml` builds and uploads it via
+`bin/package-cli.sh`). It depends on `tart` and installs only the tool, ~1.6 MB;
+the multi-GB seed is downloaded at runtime, so the seed's hosting stays
+independent of the formula.
+
+**Third-party tap.** This is a non-official tap, so its formula code runs with
+your user's privileges (Homebrew [Tap Trust](https://docs.brew.sh/Tap-Trust)).
+The fully-qualified `brew install` above trusts only this formula — no extra
+step. Installing via a **Brewfile** instead needs an explicit `trusted: true`,
+or `brew bundle` fails the trust check (notably on non-interactive runs):
+
+```ruby
+brew "bluefing/tap/bluefin-vm", trusted: true
+```
+
+> Not yet live — this activates once the tap repo (`bluefing/homebrew-tap`)
+> exists and the first release is tagged. Until then, use the developer path
+> above (`just cli run-release up`). Tracked in [BACKLOG BL-7](docs/BACKLOG.md).
+
 ## Which image
 
 The mainline Bluefin (`:latest`, `:stable`, `:gts`) is **amd64-only**; ARM64

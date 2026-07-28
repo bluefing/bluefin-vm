@@ -77,6 +77,30 @@ Create the Tart VM from the pipeline's disk.
 - qcow2→raw conversion uses the builder's bundled `qemu-img`, which writes a
   non-sparse raw over virtiofs — prefer building raw directly.
 
+## bin/package-cli.sh
+
+Packages the `bluefin-vm` tool into a release tarball for the Homebrew tap.
+
+### Scope
+
+The tool's release-packaging step; macOS/arm64 only (the sole target). CI
+calls it too, so a hand-built package matches a released one.
+
+### Purpose
+
+One command from the crate to `output/bluefin-vm-<version>-aarch64-apple-darwin.tar.gz`
+(+ a `.sha256` sidecar) — the prebuilt binary the tap fetches from a GitHub
+Release.
+
+### Detail
+
+- Ships the **tool**, not the seed: the installed binary downloads the seed at
+  runtime, so seed hosting stays decoupled from releasing the tool. Rationale
+  in the script's header and ROADMAP "Distribution".
+- Version defaults to the crate version in `cli/Cargo.toml`;
+  `.github/workflows/release.yml` runs this same script and guards the tag
+  against it. Assumes CWD = repo root.
+
 ## config.toml
 
 bootc-image-builder's config file — auto-read (at `/config.toml`, where
@@ -195,6 +219,12 @@ provision → run.
 - `.github/workflows/build-arm-image.yml` — runs `bin/build-image.sh` +
   `bin/build-disk.sh` on an ARM64 runner (patched build by default) and uploads the
   disk as an artifact.
+- `.github/workflows/release.yml` — on a `v*` tag, runs `bin/package-cli.sh` on
+  an Apple-Silicon macOS runner and attaches the tool tarball + `.sha256` to the
+  GitHub Release the Homebrew tap fetches.
+- `packaging/homebrew/bluefin-vm.rb` — canonical copy of the tap formula
+  (published to `bluefing/homebrew-tap`): fetches the prebuilt binary, depends
+  on `tart`. Bump `version`/`url`/`sha256` per release (release.yml prints them).
 - `README.md` — user-facing source of truth. `CLAUDE.md` — agent overlay.
   `docs/ROADMAP.md` (decisions/questions), `docs/BACKLOG.md` (stories),
   `docs/PROVISIONING.md` (first-boot provisioning: design + rationale).
