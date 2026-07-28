@@ -20,13 +20,20 @@ hand.
 - **Delivery is a one-time seed:** the VM self-updates via bootc after first
   boot. Tooling never re-seeds an existing VM — updates arrive inside;
   re-seeding is an explicit, clearly destructive reset.
-- **Install: brew installs a thin tool** (`bluefin-vm`), via the `ublue-os`
-  tap — *not* a multi-GB cask, *not* a local build. The tool downloads the
-  CI-built seed and imports + provisions it locally (package shape
-  "downloader", decided 2026-07-28). **Rust** — a single static binary, and
-  aligns with the upstream stack (bootc is Rust). `clap` for the CLI now,
-  `ratatui` for a TUI later, both driving one UI-agnostic core so the CLI
-  isn't throwaway.
+- **Install: brew installs a thin tool** (`bluefin-vm`) — *not* a multi-GB
+  cask, *not* a local build. The tool downloads the CI-built seed and imports +
+  provisions it locally (package shape "downloader", decided 2026-07-28).
+  **Rust** — a single static binary, and aligns with the upstream stack (bootc
+  is Rust). `clap` for the CLI now, `ratatui` for a TUI later, both driving one
+  UI-agnostic core so the CLI isn't throwaway.
+  - **Distribution (decided 2026-07-29):** the formula ships a **prebuilt
+    arm64 binary attached to a GitHub Release** (built by
+    `.github/workflows/release.yml`, versioned by `v*` tag). The tool is ~1.6
+    MB, so GitHub Releases fits it — the size objection that ruled GH Releases
+    out was about the multi-GB *seed*, a separate artifact the tool fetches at
+    runtime. This keeps releasing the tool fully decoupled from the seed's R2
+    hosting. Shipped first from an **own tap** (`bluefing/homebrew-tap`) to
+    iterate without upstream review; move to the `ublue-os` tap once stable.
 - **Seed hosting: Cloudflare R2**, served at `projectbluefin.dev`, **live
   2026-07-28** (`projectbluefin.dev/bluefin-vm-raw-arm64.zip` — anonymous,
   resumable). Long-term the bucket builds/hosts from repo releases, so this
@@ -60,6 +67,10 @@ hand.
 4. **First-boot account creation — decided 2026-07-28:** host tooling writes
    the account into the share; a guest oneshot creates it on first boot (see
    Decided, BL-8).
-5. **Gatekeeper:** does a downloaded artifact open without quarantine
-   friction?
+5. **Install trust — two layers.** *Tap trust* (the formula's Ruby, which runs
+   with the user's privileges) is handled: a fully-qualified `brew install`
+   self-trusts the one formula, and Brewfile users add `trusted: true` for the
+   non-official tap (documented in README "Install with Homebrew"). *Gatekeeper*
+   is still open — does the unsigned/un-notarised binary open without quarantine
+   friction on a clean Mac?
 6. **Disk sizing:** is a 20 GiB root the right default? User-resizable?
