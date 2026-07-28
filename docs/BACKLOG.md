@@ -161,6 +161,24 @@ Finished stories move to **Done** with the date.
   get you *into* the VM. This is using keys *from* it. Nothing host-specific is
   baked into the seed.
 
+### BL-14 — Provisioning: robust ssh-key selection  ·  `backlog` · `S`
+
+**As** a user with non-standard or multiple ssh keys,
+**I want** provisioning to find or let me choose the right public key,
+**so that** `up` installs my key without me hand-specifying it each time.
+
+- **Acceptance:**
+  - [ ] Auto-detect beyond the three fixed names: use a single non-standard
+        `~/.ssh/*.pub`; don't guess when several exist.
+  - [ ] A configurable default (e.g. `BLUEFIN_VM_SSH_KEY`) so FIDO/multi-key
+        users set it once.
+  - [ ] The interactive TUI, when it lands, lets the user pick among keys
+        rather than the tool guessing.
+  - [ ] `--ssh-key` stays the explicit override.
+- **Notes:** Today `default_ssh_key()` matches only
+  `id_ed25519|id_ecdsa|id_rsa.pub`; FIDO `sk` keys and multi-key setups need
+  `--ssh-key` (and `sk` keys need the token present to authenticate — expected).
+
 ---
 
 ## Blocked / waiting
