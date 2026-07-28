@@ -173,6 +173,21 @@ friendly symlink.
 backed up with the Mac. But shares are slow for build/git workloads — keep
 code in git on the VM's own disk; keep irreplaceable files in the share.
 
+### First-boot provisioning
+
+A downloaded seed is identical for everyone, so `up` personalises it before
+first boot: it writes your account — username, ssh public key, autologin — into
+the share, and a guest oneshot creates it on first boot, then clears the file.
+Defaults come from the host (`$USER`, `~/.ssh/*.pub`); see `up --help` to
+override, or to skip provisioning and keep the baked `bluefin`/`bluefin` login.
+
+Credential model: **public key only, no password.** A password-less account
+can't reach a greeter or `sudo`, so provisioning gives it autologin (desktop),
+the ssh key (terminal), and a passwordless-sudo rule scoped to that user
+(admin) — the disposable-VM posture: the VM holds no durable secrets (those
+live in the share). Want the stricter posture? Run `bluefin-vm-harden` in the
+VM — it sets a password and drops the passwordless-sudo rule.
+
 ### One-time guest setup
 
 Patched seeds (`just tart up-patched`) work out of the box.

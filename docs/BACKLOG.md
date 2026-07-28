@@ -143,21 +143,6 @@ Finished stories move to **Done** with the date.
 - **Notes:** Product rule: shipped tooling must never implicitly replace an
   existing VM — if a VM exists, boot it; re-seed only via an explicit reset.
 
-### BL-8 — Spike: first-boot provisioning via the durable share  ·  `backlog` · `M`
-
-**As** a Mac user,
-**I want** the VM to create *my* account on first boot,
-**so that** a downloaded seed feels personal — without a greeter.
-
-- **Acceptance:**
-  - [ ] The image ships a oneshot service (ordered after the share mount,
-        conditioned on a provision file in the share) that creates the user
-        — username, ssh public key, optional autologin — then removes the
-        file.
-  - [ ] Host tooling writes the provision file before first boot.
-  - [ ] No file → fallback to the baked test login.
-  - [ ] Secrets stance: public keys only; no passwords through the share.
-
 ### BL-13 — Dev env: use host ssh keys / YubiKey *from* the guest  ·  `backlog` · `M`
 
 **As** a developer,
@@ -212,4 +197,16 @@ Finished stories move to **Done** with the date.
 
 ## Done
 
-*(none yet — move finished stories here with a completion date)*
+### BL-8 — First-boot provisioning via the durable share  ·  `done` 2026-07-28 · `M`
+
+A downloaded seed is personalised at first boot: the host writes the account
+into the share (`core::provision` / `bluefin-vm provision`, called by `up`); a
+gated oneshot (`bluefin-vm-provision.service` + `image/provision.sh`) creates
+it, then clears the file. Credential model: pubkey-only → autologin + a scoped
+passwordless-sudo drop-in (`bluefin-vm-harden` reverts it). No provision file →
+the baked test login.
+
+**Live-verified 2026-07-28** on a patched-image boot: the oneshot ran and
+cleared the share, key-based ssh worked under enforcing SELinux, scoped
+passwordless sudo worked, autologin reached the desktop (seat0 session), and
+the account password is locked.
