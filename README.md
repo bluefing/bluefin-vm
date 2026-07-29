@@ -17,15 +17,18 @@ no installer, no greeter. A native `aarch64` guest under Apple's Virtualisation
 framework runs at near-native speed; the goal is a VM so good that,
 full-screened, you can't tell it isn't bare metal.
 
-> **Status: spike / build / evaluate.** The pipeline works end-to-end and the
-> runtime is Tart; packaging and delivery are still open.
+> **Status: spike / build / evaluate.** The pipeline works end-to-end, the
+> runtime is Tart, and the tool ships via a Homebrew tap; automating seed
+> delivery to R2 is the main piece still open.
 > [docs/ROADMAP.md](docs/ROADMAP.md) tracks what is decided.
 
 ## Quick start
 
-Two ways to a running VM. **Download a pre-built seed** — fastest, no local
-build: `up` fetches the published patched seed, imports it into Tart, and boots
-detached.
+**Installed via Homebrew?** `bluefin-vm up` fetches the published seed, imports
+it into Tart, and boots detached — see
+[Install with Homebrew](#install-with-homebrew) for the one-time setup.
+
+**From a checkout**, the same pipeline runs from source (identical core):
 
 ```bash
 just cli run-release up
@@ -45,33 +48,43 @@ just build raw -i ghcr.io/<org>/<image>:<tag>   # override the source image
 
 ## Install with Homebrew
 
-The shipped path installs the `bluefin-vm` tool from a Homebrew tap; the tool
-then fetches the seed and boots a VM:
+`bluefin-vm` installs from a Homebrew tap and shells out to `tart` (the VM
+runtime), which lives in OpenAI's own third-party tap. So first-time setup
+trusts **two** taps — tart's, then this one:
 
 ```bash
+# 1. tart's tap (provides tart + its softnet helper) — tap and trust it once:
+brew tap openai/tools
+brew trust openai/tools
+
+# 2. the tool (the fully-qualified name self-trusts this one formula):
 brew install bluefing/tap/bluefin-vm
 bluefin-vm up
 ```
 
-The formula ships a prebuilt arm64 binary attached to a GitHub Release (cut by
-pushing a `v*` tag — `.github/workflows/release.yml` builds and uploads it via
-`bin/package-cli.sh`). It depends on `tart` and installs only the tool, ~1.6 MB;
-the multi-GB seed is downloaded at runtime, so the seed's hosting stays
-independent of the formula.
+**Already run Tart?** Then it's installed and trusted — skip step 1 and
+`brew install bluefing/tap/bluefin-vm` just works.
 
-**Third-party tap.** This is a non-official tap, so its formula code runs with
-your user's privileges (Homebrew [Tap Trust](https://docs.brew.sh/Tap-Trust)).
-The fully-qualified `brew install` above trusts only this formula — no extra
-step. Installing via a **Brewfile** instead needs an explicit `trusted: true`,
-or `brew bundle` fails the trust check (notably on non-interactive runs):
+Why the trust steps: Homebrew won't load formula code from an unofficial tap
+until you trust it, and it does **not** auto-trust a *dependency's* tap. The
+fully-qualified `brew install` self-trusts `bluefin-vm`, but its `tart`
+dependency — and tart's own `softnet` dependency — come from `openai/tools`, so
+that tap needs trusting too (trusting `tart` alone doesn't cover `softnet`).
+`brew trust openai/tools` covers both in one go; if you'd rather trust per item,
+run `brew trust --formula openai/tools/tart` then the same for
+`openai/tools/softnet`. See Homebrew [Tap Trust](https://docs.brew.sh/Tap-Trust).
+
+**Via a Brewfile**, each unofficial-tap entry needs `trusted: true`, or
+`brew bundle` fails the trust check (notably on non-interactive runs):
 
 ```ruby
+tap "openai/tools", trusted: true              # the tart dependency's tap
 brew "bluefing/tap/bluefin-vm", trusted: true
 ```
 
-> Not yet live — this activates once the tap repo (`bluefing/homebrew-tap`)
-> exists and the first release is tagged. Until then, use the developer path
-> above (`just cli run-release up`). Tracked in [BACKLOG BL-7](docs/BACKLOG.md).
+The formula installs only the tool — a prebuilt arm64 binary (~1.6 MB) attached
+to a GitHub Release; the multi-GB seed is downloaded at runtime, so the seed's
+hosting stays independent of the formula.
 
 ## Which image
 
@@ -257,8 +270,10 @@ systemctl --user daemon-reload && systemctl --user start spice-vdagent
 
 Fast, offline [bats](https://github.com/bats-core/bats-core) checks in
 `tests/` — arg handling, `build-disk.sh -n` dry-run output, and `just` recipe
-wiring. No container builds, no network. The lint gate needs the system
-tools (`brew install bats-core shellcheck shfmt hadolint pre-commit`):
+wiring. No container builds, no network. `just lint` needs `bats` and
+`pre-commit` on the system (`brew install bats-core pre-commit`);
+shellcheck/shfmt/hadolint come from pre-commit's pinned environments, not the
+system:
 
 ```bash
 just test        # bats + the cli's Rust unit tests — fast inner loop

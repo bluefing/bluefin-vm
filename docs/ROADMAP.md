@@ -67,10 +67,12 @@ hand.
 4. **First-boot account creation — decided 2026-07-28:** host tooling writes
    the account into the share; a guest oneshot creates it on first boot (see
    Decided, BL-8).
-5. **Install trust — two layers.** *Tap trust* (the formula's Ruby, which runs
-   with the user's privileges) is handled: a fully-qualified `brew install`
-   self-trusts the one formula, and Brewfile users add `trusted: true` for the
-   non-official tap (documented in README "Install with Homebrew"). *Gatekeeper*
-   is still open — does the unsigned/un-notarised binary open without quarantine
-   friction on a clean Mac?
+5. **Install trust — verified 2026-07-29.** *Tap trust*: a fully-qualified
+   `brew install` self-trusts our formula, but the `tart` dependency (and its
+   `softnet` dep) come from the unofficial `openai/tools` tap, which must be
+   tapped + trusted too — documented in README "Install with Homebrew"
+   (Brewfile users add `trusted: true`). *Gatekeeper*: the unsigned/un-notarised
+   arm64 binary runs with no quarantine friction (brew strips quarantine on
+   formula downloads; the ad-hoc signature suffices to execute) — confirmed on
+   the brew-installed tool.
 6. **Disk sizing:** is a 20 GiB root the right default? User-resizable?

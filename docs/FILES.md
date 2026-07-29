@@ -222,9 +222,9 @@ provision → run.
 - `.github/workflows/release.yml` — on a `v*` tag, runs `bin/package-cli.sh` on
   an Apple-Silicon macOS runner and attaches the tool tarball + `.sha256` to the
   GitHub Release the Homebrew tap fetches.
-- `packaging/homebrew/bluefin-vm.rb` — canonical copy of the tap formula
-  (published to `bluefing/homebrew-tap`): fetches the prebuilt binary, depends
-  on `tart`. Bump `url`/`sha256` per release (release.yml prints them; the
+- The Homebrew formula is **not** vendored here — it lives in the tap repo
+  (`bluefing/homebrew-tap`, `Formula/bluefin-vm.rb`), the single source of
+  truth. `release.yml` prints the `url`/`sha256` to bump it per release (the
   version is scanned from the url).
 - `README.md` — user-facing source of truth. `CLAUDE.md` — agent overlay.
   `docs/ROADMAP.md` (decisions/questions), `docs/BACKLOG.md` (stories),
