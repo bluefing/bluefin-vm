@@ -4,17 +4,16 @@
 #
 # It ships the TOOL only -- a prebuilt arm64 binary from a GitHub Release, built
 # by .github/workflows/release.yml. The installed tool downloads the VM seed at
-# runtime, so the seed's hosting stays independent of this formula. Bump
-# `version`, `url`, and `sha256` per release; release.yml prints the exact url +
-# sha256 to paste in.
+# runtime, so the seed's hosting stays independent of this formula. Bump `url`
+# and `sha256` per release (the version is scanned from the url); release.yml
+# prints both to paste in.
 class BluefinVm < Formula
   desc "Download, import, and run a Bluefin VM on Apple Silicon"
   homepage "https://github.com/bluefing/bluefin-vm"
   url "https://github.com/bluefing/bluefin-vm/releases/download/v0.1.0/bluefin-vm-0.1.0-aarch64-apple-darwin.tar.gz"
-  version "0.1.0"
-  # Placeholder until the first release is tagged; release.yml emits the real
-  # value. `brew fetch` verifies the download against this.
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  # From the v0.1.0 GitHub Release (release.yml emits it); bump per release.
+  # The version is scanned from the url, so only url + sha256 change.
+  sha256 "602c2a71140eb477d732ab64ff25f34e458fbbfda43754d6bc79cdda5c2f4a08"
   license "Apache-2.0"
 
   # Apple Silicon only: the tool drives Apple's Virtualisation framework, and

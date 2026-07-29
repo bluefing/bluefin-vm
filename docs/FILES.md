@@ -224,7 +224,8 @@ provision → run.
   GitHub Release the Homebrew tap fetches.
 - `packaging/homebrew/bluefin-vm.rb` — canonical copy of the tap formula
   (published to `bluefing/homebrew-tap`): fetches the prebuilt binary, depends
-  on `tart`. Bump `version`/`url`/`sha256` per release (release.yml prints them).
+  on `tart`. Bump `url`/`sha256` per release (release.yml prints them; the
+  version is scanned from the url).
 - `README.md` — user-facing source of truth. `CLAUDE.md` — agent overlay.
   `docs/ROADMAP.md` (decisions/questions), `docs/BACKLOG.md` (stories),
   `docs/PROVISIONING.md` (first-boot provisioning: design + rationale).
