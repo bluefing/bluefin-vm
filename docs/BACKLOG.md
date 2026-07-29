@@ -48,6 +48,24 @@ Finished stories move to **Done** with the date.
   and produced a 22 GB raw regardless, so the default may now suffice.
   Investigate the current bootc-image-builder schema before changing anything.
 
+### BL-16 — `bluefin-vm up` must not replace an existing VM  ·  `ready` · `S`
+
+**As** a user,
+**I want** a re-run of `bluefin-vm up` to boot my existing VM, not silently
+re-seed it,
+**so that** I never lose VM state to a repeat command.
+
+- **Acceptance:**
+  - [ ] If the named VM exists, `up` boots it — no re-import (matches the
+        product rule and `just tart up`'s guarded behaviour).
+  - [ ] Re-seeding is explicit and clearly destructive (e.g. `--reset` or a
+        separate subcommand).
+  - [ ] README "Running the VM" documents CLI `up` vs the `just tart up` recipe.
+- **Notes:** Today `up()` calls `core::tart::import` unconditionally, which does
+  `tart delete` + `tart create` — a second `up` destroys the VM. `just tart up`
+  is already incremental; the Rust CLI isn't. Surfaced verifying BL-7
+  (2026-07-29). The product rule this restores is stated in BL-7's notes.
+
 ---
 
 ## Backlog
@@ -123,14 +141,18 @@ Finished stories move to **Done** with the date.
         tarball and `.sha256` on a `v*` tag, via `bin/package-cli.sh` (local and
         CI produce the identical artifact); the tag is guarded against
         `cli/Cargo.toml`.
-  - [x] Formula authored (`packaging/homebrew/bluefin-vm.rb`): declares
-        `depends_on "openai/tools/tart"` (the tool shells out to `tart`) and
-        pins to arm64.
-  - [ ] Own tap published (`bluefing/homebrew-tap`, `Formula/bluefin-vm.rb`) and
-        the first `v*` release cut; `brew install bluefing/tap/bluefin-vm` →
-        `bluefin-vm up` → first boot verified end to end on a clean Mac.
-  - [ ] Update / VM-state story documented: `brew upgrade` replaces the tool
-        only, never the VM (product rule below); re-seed stays an explicit reset.
+  - [x] Formula published to the tap (`bluefing/homebrew-tap`,
+        `Formula/bluefin-vm.rb` — the source of truth, not vendored in this
+        repo): `depends_on "openai/tools/tart"` (the tool shells out to `tart`),
+        pins arm64, version scanned from the url.
+  - [x] Own tap published and `v0.1.0` cut (2026-07-29); `brew install
+        bluefing/tap/bluefin-vm` → `bluefin-vm up` → first boot verified end to
+        end (`brew audit --online` clean; install → run → boot). Exercised on a
+        dev Mac and a cleaner run that also walked the `openai/tools` trust
+        chain; a pristine clean-Mac pass stays the ideal final check.
+  - [ ] Update / VM-state story: `brew upgrade` replaces the tool only (the VM
+        lives in `~/.tart`, untouched); re-seed stays explicit — needs the `up`
+        guard (BL-16) plus a README note once it lands.
 - **Notes:** Own tap first, to iterate without upstream review; move to the
   `ublue-os` tap once stable. Product rule: shipped tooling must never
   implicitly replace an existing VM — if a VM exists, boot it; re-seed only via
