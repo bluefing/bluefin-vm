@@ -226,6 +226,8 @@ provision → run.
   (`bluefing/homebrew-tap`, `Formula/bluefin-vm.rb`), the single source of
   truth. `release.yml` prints the `url`/`sha256` to bump it per release (the
   version is scanned from the url).
-- `README.md` — user-facing source of truth. `CLAUDE.md` — agent overlay.
-  `docs/ROADMAP.md` (decisions/questions), `docs/BACKLOG.md` (stories),
-  `docs/PROVISIONING.md` (first-boot provisioning: design + rationale).
+- `README.md` — the landing page: what the project is, install, and links into
+  `docs/`. `CLAUDE.md` — agent overlay. `docs/BUILDING.md` (build the
+  image/disk, which image, tests), `docs/USAGE.md` (run & use a VM),
+  `docs/PROVISIONING.md` (first-boot provisioning: design + rationale),
+  `docs/ROADMAP.md` (decisions/questions), `docs/BACKLOG.md` (stories).

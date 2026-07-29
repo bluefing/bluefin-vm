@@ -5,12 +5,18 @@
 # present the service is condition-skipped and the baked test login stays the
 # way in.
 #
-# Credential model (BACKLOG BL-8, README "First-boot provisioning"): public key
+# Credential model (BACKLOG BL-8, docs/USAGE.md "First-boot provisioning"): public key
 # only, no password. A password-less account can't be reached through a greeter
-# and can't sudo, so usability comes from three things together -- the ssh key
-# (terminal), autologin (desktop), and a scoped passwordless-sudo rule (admin).
-# That is the disposable-dev-VM posture: the VM is throwaway and holds no
-# durable secrets (those live host-side in the share).
+# and can't sudo, so usability comes from three things together:
+#
+# - the ssh key (terminal),
+# - autologin (desktop),
+# - and a scoped passwordless-sudo rule (admin).
+#
+# That is the disposable-dev-VM posture: no password or private key ever lives
+# in the VM, and the share only carries your public key, which this script
+# clears after first boot.
+
 set -euo pipefail
 
 pdir=/var/mnt/shared/bluefin-share/.bluefin-vm
@@ -23,7 +29,8 @@ if [[ ! $user =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
   exit 1
 fi
 
-# wheel = admin; /etc/skel gives the home its ~/Shared symlink and dotfiles.
+# wheel = admin; /etc/skel gives the home its ~/Shared symlink (created by
+# image/Containerfile).
 id "$user" &>/dev/null || useradd --create-home --groups wheel "$user"
 home=$(getent passwd "$user" | cut -d: -f6)
 

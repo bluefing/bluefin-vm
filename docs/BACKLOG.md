@@ -60,7 +60,8 @@ re-seed it,
         product rule and `just tart up`'s guarded behaviour).
   - [ ] Re-seeding is explicit and clearly destructive (e.g. `--reset` or a
         separate subcommand).
-  - [ ] README "Running the VM" documents CLI `up` vs the `just tart up` recipe.
+  - [ ] docs/USAGE.md "Running the VM" documents CLI `up` vs the `just tart up`
+        recipe.
 - **Notes:** Today `up()` calls `core::tart::import` unconditionally, which does
   `tart delete` + `tart create` — a second `up` destroys the VM. `just tart up`
   is already incremental; the Rust CLI isn't. Surfaced verifying BL-7
@@ -212,6 +213,20 @@ re-seed it,
   separate mechanism (PROVISIONING.md Limits). Same "no password" root cause as
   autologin / passwordless-sudo / lock-disable — the one such consequence not
   yet handled. Narrow in practice (much Bluefin admin is CLI or Flatpak).
+
+### BL-17 — Clean up `image/provision.sh`  ·  `backlog` · `S`
+
+**As** a maintainer,
+**I want** `provision.sh` to drop the embedded Python and carry fewer concerns,
+**so that** the first-boot logic stays readable and maintainable.
+
+- **Acceptance:**
+  - [ ] Replace the embedded `configparser` heredoc (editing
+        `/etc/gdm/custom.conf` for autologin) with a non-Python approach —
+        `crudini`, a GDM drop-in, or a tidy `sed` — or extract it to a helper.
+  - [ ] Review the script for other cruft; decompose if it's carrying too many
+        concerns (account, ssh, sudoers, autologin, dconf lock-disable).
+- **Notes:** Flagged 2026-07-29.
 
 ---
 

@@ -14,7 +14,7 @@ hand.
 - **Source image:** an arm64 Bluefin bootc container, regenerated from
   upstream so it stays fresh. (arm64 only lives in the LTS line *today* — a
   moving upstream constraint, not a choice; which tag currently boots is in
-  README "Which image?".)
+  docs/BUILDING.md "Which image".)
 - **Build:** `bootc-image-builder` via `bin/build-disk.sh`, identical locally
   (Docker/Colima) and in CI (ARM64 Linux runner).
 - **Delivery is a one-time seed:** the VM self-updates via bootc after first

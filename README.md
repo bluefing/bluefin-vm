@@ -1,56 +1,21 @@
 # bluefin-vm
 
-Build the **ARM64 [Bluefin](https://projectbluefin.io) bootc containers** into
-a bootable [Tart](https://tart.run) VM, so Bluefin runs as a fast,
-near-native Linux dev environment beside macOS on Apple Silicon.
+Turn the upstream **[Bluefin](https://projectbluefin.io)** bootc container into a
+running Linux VM on Apple Silicon with one command — a provisioned desktop, no
+ISO, no installer, no greeter.
 
-## Why
-
-You can run Bluefin in a Mac VM the manual way — grab an ISO, create a VM,
-click through the installer. It works, but it's hand-work you repeat on every
-machine and redo each time the image refreshes, and what you get is a one-off
-to reconfigure, not something reproducible.
-
-This repo is a pipeline instead: **macOS keeps the hardware, and Bluefin runs
-in a VM built from the upstream container** — booting straight to a desktop,
-no installer, no greeter. A native `aarch64` guest under Apple's Virtualisation
-framework runs at near-native speed; the goal is a VM so good that,
-full-screened, you can't tell it isn't bare metal.
-
-> **Status: spike / build / evaluate.** The pipeline works end-to-end, the
-> runtime is Tart, and the tool ships via a Homebrew tap; automating seed
-> delivery to R2 is the main piece still open.
-> [docs/ROADMAP.md](docs/ROADMAP.md) tracks what is decided.
-
-## Quick start
-
-**Installed via Homebrew?** `bluefin-vm up` fetches the published seed, imports
-it into Tart, and boots detached — see
-[Install with Homebrew](#install-with-homebrew) for the one-time setup.
-
-**From a checkout**, the same pipeline runs from source (identical core):
-
-```bash
-just cli run-release up
-```
-
-**Or build it yourself** from the upstream container:
-
-```bash
-just tart up-patched    # derived image, zero guest setup
-just tart up            # stock upstream image (needs one-time guest setup)
-just build raw          # build a disk only, don't launch (or: iso / qcow2)
-just build raw -i ghcr.io/<org>/<image>:<tag>   # override the source image
-```
-
-`up` shells out to `tart`; the VM it produces is identical to a built one, so
-[Running the VM](#running-the-vm) applies either way.
+An `aarch64` guest under Apple's Virtualisation framework (via
+[Tart](https://tart.run)) delivers near-native speed. What this project adds is
+the convenience: a reproducible build from the upstream bootc image, first-boot
+provisioning, and the guest tweaks (clipboard, shared folder, ssh) that make the
+VM a fast, low-friction dev environment — a rock-solid, immutable Linux desktop
+on rock-solid Apple hardware.
 
 ## Install with Homebrew
 
 `bluefin-vm` installs from a Homebrew tap and shells out to `tart` (the VM
-runtime), which lives in OpenAI's own third-party tap. So first-time setup
-trusts **two** taps — tart's, then this one:
+runtime), which lives in OpenAI's own third-party tap. First-time setup requires
+trusting **two** taps — tart's, then this one:
 
 ```bash
 # 1. tart's tap (provides tart + its softnet helper) — tap and trust it once:
@@ -62,241 +27,48 @@ brew install bluefing/tap/bluefin-vm
 bluefin-vm up
 ```
 
-**Already run Tart?** Then it's installed and trusted — skip step 1 and
-`brew install bluefing/tap/bluefin-vm` just works.
+`bluefin-vm up` downloads the published seed, imports it into Tart, provisions
+your account, and boots the VM. The formula installs only the tool (~1.6 MB);
+the multi-GB seed is downloaded at runtime.
 
-Why the trust steps: Homebrew won't load formula code from an unofficial tap
-until you trust it, and it does **not** auto-trust a *dependency's* tap. The
-fully-qualified `brew install` self-trusts `bluefin-vm`, but its `tart`
-dependency — and tart's own `softnet` dependency — come from `openai/tools`, so
-that tap needs trusting too (trusting `tart` alone doesn't cover `softnet`).
-`brew trust openai/tools` covers both in one go; if you'd rather trust per item,
-run `brew trust --formula openai/tools/tart` then the same for
-`openai/tools/softnet`. See Homebrew [Tap Trust](https://docs.brew.sh/Tap-Trust).
+Brewfile installs and the trust details are in the
+[tap's README](https://github.com/bluefing/homebrew-tap).
 
-**Via a Brewfile**, each unofficial-tap entry needs `trusted: true`, or
-`brew bundle` fails the trust check (notably on non-interactive runs):
+## Status
 
-```ruby
-tap "openai/tools", trusted: true              # the tart dependency's tap
-brew "bluefing/tap/bluefin-vm", trusted: true
-```
+Experimental — a working proof-of-concept, not a stable release.
 
-The formula installs only the tool — a prebuilt arm64 binary (~1.6 MB) attached
-to a GitHub Release; the multi-GB seed is downloaded at runtime, so the seed's
-hosting stays independent of the formula.
+- Pipeline works end-to-end.
+- Runtime is Tart.
+- Tool ships via a personal Homebrew tap.
 
-## Which image
+## Planned
 
-The mainline Bluefin (`:latest`, `:stable`, `:gts`) is **amd64-only**; ARM64
-builds currently exist only in the `LTS` line. Always use an `*-arm64` (or
-multi-arch `lts`) tag: an arm64 guest runs under the hypervisor with no CPU
-emulation, so it's near-native — an amd64 image would force slow emulation.
+Not built yet — where this is headed:
 
-| Tag | Arch |
-| --- | --- |
-| `bluefin:latest` / `stable` / `gts` | amd64 only |
-| `bluefin:lts` | multi-arch (amd64 **+ arm64**) |
-| `bluefin:lts-arm64` | arm64 (explicit) |
+- **Interactive setup (TUI)** — a [ratatui](https://ratatui.rs) front-end over
+  the same core, to customise the VM (account, ssh key, autologin, CPU/memory,
+  image flavour) interactively instead of via flags.
+- **Flavours** — pick a Bluefin variant (e.g. `bluefin-dx`) as the seed; each is
+  just a different upstream image.
+- **Automated seed delivery** — CI builds and publishes seeds so downloads stay
+  fresh without manual uploads.
+- **Host key integration** — use your host ssh keys / YubiKey from inside the
+  guest via agent forwarding, no secrets copied in.
+- **Suspend / resume** — pause keeping the in-RAM session (waiting on Tart's
+  Linux-guest support).
 
-As of 2026-07 the stable `lts-arm64` ships a broken GNOME (gnome-shell 49.5
-against mutter 49.4) which crash-loops to a black screen on aarch64. The
-GNOME 50 testing image works and is this repo's default:
+## Docs
 
-```
-# gnome-shell 50.0 / mutter 50.0 — validated booting on Apple Silicon
-ghcr.io/ublue-os/bluefin:lts-testing-50-arm64
-```
-
-Override per build with `-i`. Once GNOME 50 lands on the stable tag, swap
-`default_image` in `.just/_config.just` back to `:lts-arm64`.
-
-## How the build works
-
-`bootc-image-builder` does **not** pull the source image itself — it reads it
-from container storage. So every build is two steps: **pull** the image into
-the store, then **build**. `bin/build-disk.sh` auto-selects the container engine:
-
-- **Linux + Podman (CI):** uses the host's rootful container storage.
-  Needs root for loop devices → run via `sudo ./bin/build-disk.sh`.
-- **macOS + Docker/Colima:** there is no host container storage, so the
-  script pulls into a named volume (`bootc-store`) using the builder image's
-  bundled podman, then builds against it.
-- **`localhost/` images** (e.g. the derived image below) exist only in the
-  store — the pull step is skipped.
-
-`config.toml` customises the built disk (root filesystem size, a test
-login); its comments explain why each setting exists.
-
-## The derived image
-
-`image/Containerfile` layers the guest configuration that the stock image
-lacks and disk-build customisation can't express (the why of each piece is in
-the file's comments): the clipboard-agent session wiring, sshd enabled, the
-host-share mount (condition-gated so share-less boots stay clean), and the
-`~/Shared` symlink. `just build image` builds it into the container store as
-a `localhost/` image — with the same engine auto-selection as the disk build,
-so it works locally and in CI, where the patched build is the default
-distribution artifact. `just tart up-patched` runs the whole chain —
-container → disk → import → boot. A VM seeded this way needs **zero manual
-guest setup**.
-
-## Building locally on the Mac (Docker/Colima)
-
-Colima must be running first: `colima start --cpu 4 --memory 8` — give it
-that headroom or large builds can OOM, and budget ~20 GB of free disk per
-raw build. Builds land in:
-
-| format | output |
-| --- | --- |
-| `raw` | `./output/image/disk.raw` |
-| `qcow2` | `./output/qcow2/disk.qcow2` |
-| `iso` | `./output/bootiso/` |
-
-## CI build (native ARM64 runner)
-
-`.github/workflows/build-arm-image.yml` runs the same `build-disk.sh` on a
-`ubuntu-24.04-arm` runner (Podman preinstalled) and uploads the image as an
-artifact. Trigger from the Actions tab (`workflow_dispatch`).
-
-> Artifacts are multi-GB; retention is 7 days. A real release belongs in
-> object storage or a GitHub Release.
-
-## Running the VM
-
-`just tart up` is incremental — it:
-
-- builds the raw disk if absent
-- re-imports only when the disk is newer than the VM's copy (that step
-  replaces VM state)
-- boots
-
-A repeat `up` goes straight to boot and keeps your VM.
-
-`just tart up-patched` is the opposite contract — it:
-
-- always rebuilds from the derived image
-- replaces the VM
-
-Both start the VM detached and return your terminal (output lands in
-`$TMPDIR/tart-<name>.log`; startup failures still fail the recipe).
-
-`start` / `start-headless` are the attached variants, `just tart ssh` gets you
-in, `just tart stop` shuts down. Defaults: 1920×1200 display with window refit
-(override `TART_DISPLAY`, `TART_CPU`, `TART_MEM`).
-
-### Sharper text
-
-The Tart view maps one guest pixel to one host **point**, so the VM's pixel
-density comes from the *host display mode*, not the guest resolution:
-
-- **Default:** display-refit follows the window. On a default host mode this
-  renders at 1× — right-sized, slightly soft next to native macOS text.
-- **Crisp:** switch the host to a denser mode (e.g. 2880×1800 on a 15" panel)
-  and fullscreen — refit matches the guest at near-native panel density. Pick
-  UI size inside GNOME: Scale 100% (maximum space, small text) or 200%
-  (looks-like half, larger UI, same crispness). Cost: the host mode is
-  global, so the macOS UI shrinks too.
-
-Don't pin `--display` above the window size — anything larger than the
-window is cropped, not shrunk to fit. (Tart's HiDPI display units apply to
-macOS guests only; the Linux scanout is raw pixels — a
-Virtualisation.framework limitation.)
-
-### Shared folder — where durable data lives
-
-The recipes share `~/bluefin-share` into the VM over virtiofs automatically
-(override with `TART_SHARE_DIR`; the default avoids `~/Documents`, which is
-iCloud-synced on many Macs — evicted files would stall guest reads). In the
-guest it lands at `/var/mnt/shared/bluefin-share`, with `~/Shared` as the
-friendly symlink.
-
-**The rule: the VM is disposable, the share is durable.** Anything in
-`~/Shared` survives VM re-seed/reset/delete, is visible to macOS apps, and is
-backed up with the Mac. But shares are slow for build/git workloads — keep
-code in git on the VM's own disk; keep irreplaceable files in the share.
-
-### First-boot provisioning
-
-A downloaded seed is identical for everyone, so `up` personalises it before
-first boot: it writes your account — username, ssh public key, autologin — into
-the share, and a guest oneshot creates it on first boot, then clears the file.
-Defaults come from the host (`$USER`, `~/.ssh/*.pub`); see `up --help` to
-override, or to skip provisioning and keep the baked `bluefin`/`bluefin` login.
-To lock the account down afterwards, run `bluefin-vm-harden` in the VM.
-
-The credential model — why a password-less account gets autologin, passwordless
-sudo, and a lock-free desktop — and the mechanism are in
-[docs/PROVISIONING.md](docs/PROVISIONING.md).
-
-### One-time guest setup
-
-Patched seeds (`just tart up-patched`) work out of the box.
-
-Stock seeds (`just tart up`) need some setup first — run these in the guest:
-
-#### SSH
-
-```bash
-# SSH first — the rest can then be pasted over ssh:
-sudo systemctl enable --now sshd
-```
-
-#### Shared folder
-
-```bash
-# The durable share:
-echo 'com.apple.virtio-fs.automount /var/mnt/shared virtiofs defaults,nofail 0 0' \
-  | sudo tee -a /etc/fstab
-sudo mkdir -p /var/mnt/shared/bluefin-share && sudo mount -a
-ln -s /var/mnt/shared/bluefin-share ~/Shared
-```
-
-#### Clipboard
-
-```bash
-# Clipboard — the packaged spice-vdagent user unit is static (no [Install]),
-# unordered, and GNOME 50 ignores the legacy autostart entry (upstream bug,
-# BACKLOG BL-1). Wire it in, ordered after the session — unordered it races
-# the session environment and dies at login:
-mkdir -p ~/.config/systemd/user/spice-vdagent.service.d
-printf '[Unit]\nAfter=graphical-session.target\nPartOf=graphical-session.target\n' \
-  > ~/.config/systemd/user/spice-vdagent.service.d/10-order.conf
-systemctl --user add-wants graphical-session.target spice-vdagent.service
-systemctl --user daemon-reload && systemctl --user start spice-vdagent
-```
-
-## Tests
-
-Fast, offline [bats](https://github.com/bats-core/bats-core) checks in
-`tests/` — arg handling, `build-disk.sh -n` dry-run output, and `just` recipe
-wiring. No container builds, no network. `just lint` needs `bats` and
-`pre-commit` on the system (`brew install bats-core pre-commit`);
-shellcheck/shfmt/hadolint come from pre-commit's pinned environments, not the
-system:
-
-```bash
-just test        # bats + the cli's Rust unit tests — fast inner loop
-just lint        # pre-commit run --all-files: shellcheck, shfmt, hadolint, tests, ...
-```
-
-A `pre-commit` hook gates every commit; set it up once with
-`pre-commit install`.
-
-Those are the offline dev-loop checks. There's also a **runtime** check that
-runs *inside* a booted VM — `just tart smoke <name>` delivers
-`tests/smoke/guest-checks.sh` through the share, runs it in the guest, and
-reports on the baked patches (sshd, clipboard agent, share). Use it to
-validate a seed actually works, not just that the plumbing is wired.
-
-## What to test once booted
-
-The workload is the test, not the conversion — check the Bluefin-specific
-tooling works on ARM:
-
-- `ujust` recipes (the `just`-based system management commands)
-- the **dx / developer-mode** toggle
-- anything the docs drive that might assume x86
+- **[Building](docs/BUILDING.md)** — build the image and disk yourself: which
+  upstream image to use, local and CI builds, and tests.
+- **[Running & using a VM](docs/USAGE.md)** — start/stop/ssh, display density,
+  the shared folder, and one-time guest setup for stock seeds.
+- **[First-boot provisioning](docs/PROVISIONING.md)** — the account and
+  credential model (autologin, passwordless sudo, hardening).
+- **[Roadmap](docs/ROADMAP.md)** and **[Backlog](docs/BACKLOG.md)** — decisions,
+  open questions, and stories.
+- **[File map](docs/FILES.md)** — what each file in the repo does.
 
 ## License
 

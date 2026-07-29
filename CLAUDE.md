@@ -1,14 +1,15 @@
 # CLAUDE.md — bluefin-vm
 
-Agent-facing context. **What the project is, how the build works, which image
-to use, and the build gotchas live in [README.md](README.md)** — the single
-source of truth. Read it; don't restate it here. This file holds only the
-guardrails, a file map pointer, and how to respond.
+Agent-facing context. **What the project is and how to install it live in
+[README.md](README.md); how the build works, which image to use, and the build
+gotchas live in [docs/BUILDING.md](docs/BUILDING.md)** — the single sources of
+truth. Read them; don't restate here. This file holds only the guardrails, a
+file map pointer, and how to respond.
 
-## Guardrails (don't regress — README explains the why of each)
+## Guardrails (don't regress — docs/BUILDING.md explains the why of each)
 
 - Image: always an `*-arm64` / `lts` tag (amd64 forces slow emulation).
-  *Which* tag currently boots changes — see README "Which image?".
+  *Which* tag currently boots changes — see docs/BUILDING.md "Which image".
 - Never pass `--target-arch`; there is no `--local` flag. Build ARM on an
   ARM host.
 - Keep `config.toml` (20 GiB root, auto-read at `/config.toml`) — without it
