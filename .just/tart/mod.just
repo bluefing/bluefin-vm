@@ -4,6 +4,11 @@ import '../_common.just'
 [private]
 mod build '../build/'
 
+# up-provisioned stages the account through the real host-side writer, so the
+# dev loop drives the same code `bluefin-vm up` ships rather than a stub.
+[private]
+mod cli '../cli/'
+
 # --- lifecycle: the everyday verbs ------------------------------------------
 
 # One shot for the derived image (image/Containerfile): build the patched
@@ -13,6 +18,17 @@ mod build '../build/'
 [doc('Rebuild from image/Containerfile and start a fresh patched VM (replaces VM state)')]
 [group('lifecycle')]
 up-patched name=default_name: (build::image) (build::raw patched_image) (import name) (up name)
+
+# up-patched, but stage first-boot provisioning into the share first (via the
+# real `bluefin-vm provision`), so the freshly built seed boots THROUGH
+# provisioning into your own account rather than the baked test login -- the
+# inner loop for changing image/provision.sh. The account is host $USER with an
+# autodetected ssh key; for other accounts or flags, run `just cli run provision
+# ...` yourself before an `up`. Like up-patched it always rebuilds and REPLACES
+# the VM.
+[doc('Stage provisioning, then rebuild and boot a fresh VM through it (replaces VM state)')]
+[group('lifecycle')]
+up-provisioned name=default_name: (cli::run "provision" "--share" default_share) up-patched
 
 # Bring the VM up, doing only the missing work: build the raw disk if absent,
 # re-import when the disk is newer than the VM's copy (this replaces VM state),
@@ -54,13 +70,23 @@ up name=default_name image=default_image:
   echo ">> VM '{{name}}' running detached (window open). Log: $log"
   echo ">> Stop: just tart stop -- attached run: just tart start"
 
-# SSH into a running Tart VM (user: the baked test login).
-# --resolver arp because the default DHCP-lease lookup returns nothing on
-# macOS 26; ARP answers for any running VM.
-[doc('SSH into a running Tart VM as the baked test login')]
+# SSH into a running Tart VM. Defaults to your own host account -- the one
+# provisioning creates -- so a provisioned seed needs no flags; pass --user/-u
+# for the baked bluefin login or any other account. The default is the literal
+# $USER, expanded by the shell at run time.
+[doc('SSH into a running Tart VM (--user; default: your host account)')]
+[arg('user', long, short)]
 [group('lifecycle')]
-ssh name=default_name:
-  ssh "${TART_SSH_USER:-bluefin}@$(tart ip "{{name}}" --resolver arp)"
+ssh name=default_name user='$USER':
+  ssh "{{user}}@$(just tart ip "{{name}}")"
+
+# The default DHCP-lease lookup returns nothing on macOS 26, so this resolves by
+# ARP, which answers for any running VM. ssh and smoke call it, keeping that
+# rationale in one place.
+[doc('Print the IP of a running Tart VM (via arp)')]
+[group('lifecycle')]
+ip name=default_name:
+  tart ip "{{name}}" --resolver arp
 
 # Run the guest smoke test in a running VM: deliver tests/smoke/guest-checks.sh
 # through the share, run it over ssh with a host-generated run id, then assert
@@ -68,19 +94,22 @@ ssh name=default_name:
 # deterministically (host picks the name, so seeing it isn't coincidence). The
 # recipe's exit code is the guest's (checks pass/fail). The VM must already be
 # up with the share attached (just tart up / start). Host-key checking is off:
-# test VMs are disposable and re-keyed each rebuild.
+# test VMs are disposable and re-keyed each rebuild. Defaults to the baked
+# bluefin login -- smoke validates baked patches on a fresh seed, where a
+# provisioned account may not exist; pass --user/-u for a provisioned VM.
 [doc('Run the guest smoke test in a running VM; assert the share round-trip')]
+[arg('user', long, short)]
 [no-cd]
 [group('lifecycle')]
 [script]
-smoke name=default_name:
+smoke name=default_name user='bluefin':
   run_id="$(date +%Y%m%d-%H%M%S)"
   expected="{{default_share}}/${run_id}-guest-checks.log"
   mkdir -p "{{default_share}}"
   cp tests/smoke/guest-checks.sh "{{default_share}}/"
   guest_rc=0
   ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-    "${TART_SSH_USER:-bluefin}@$(tart ip "{{name}}" --resolver arp)" \
+    "{{user}}@$(just tart ip "{{name}}")" \
     "bash ~/Shared/guest-checks.sh $run_id" || guest_rc=$?
   echo ">> share round-trip: expecting $expected"
   if [ -f "$expected" ]; then

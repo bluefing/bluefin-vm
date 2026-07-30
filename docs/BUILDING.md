@@ -79,6 +79,19 @@ in CI, where the patched build is the default distribution artefact.
 `just tart up-patched` runs the whole chain — container → disk → import → boot.
 A VM seeded this way needs zero manual guest setup.
 
+## Exercising first-boot provisioning
+
+`up-patched` boots into the baked `bluefin` login: it stages no account data, so
+the provisioning oneshot is condition-skipped and you never see a change to
+`image/provision.sh` run. `just tart up-provisioned` closes that loop — it first
+writes your account into the share with the real `bluefin-vm provision` (the same
+host-side writer `bluefin-vm up` ships), then runs the `up-patched` chain, so the
+fresh seed boots *through* provisioning into your own account. Edit
+`image/provision.sh`, run `up-provisioned`, then `just tart ssh` — it defaults to
+your host account, so you land straight in the provisioned login. It uses host
+`$USER` and an autodetected ssh key; for other accounts or flags, run
+`just cli run provision …` yourself before an `up`.
+
 ## Building locally on the Mac (Docker/Colima)
 
 Colima must be running first: `colima start --cpu 4 --memory 8` — give it

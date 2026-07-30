@@ -61,10 +61,22 @@ setup() {
   [[ "$output" == *"bin/create-vm.sh -d output/image/disk.raw"* ]]
 }
 
-@test "just tart ssh targets the VM's IP with the test login" {
+@test "just tart ssh targets the VM's IP as your host account by default" {
   run just --dry-run tart ssh
   [[ "$output" == *"tart ip"* ]]
-  [[ "$output" == *"bluefin"* ]]
+  # Default is the literal $USER (what provisioning creates), not a baked name.
+  [[ "$output" == *'$USER'* ]]
+}
+
+@test "just tart ssh --user overrides the account" {
+  run just --dry-run tart ssh --user bluefin
+  [[ "$output" == *"bluefin@"* ]]
+}
+
+@test "just tart ip resolves the VM address via arp" {
+  run just --dry-run tart ip
+  [[ "$output" == *"tart ip"* ]]
+  [[ "$output" == *"--resolver arp"* ]]
 }
 
 @test "just tart smoke delivers the script, runs it, and asserts the round-trip" {
@@ -72,6 +84,8 @@ setup() {
   [[ "$output" == *"tests/smoke/guest-checks.sh"* ]]
   [[ "$output" == *"tart ip"* ]]
   [[ "$output" == *"bash ~/Shared/guest-checks.sh"* ]]
+  # Defaults to the baked login (the account a fresh seed always has).
+  [[ "$output" == *"bluefin@"* ]]
   # host generates the run id and asserts that exact file came back
   [[ "$output" == *"run_id="* ]]
   [[ "$output" == *'guest-checks.log"'* ]]
@@ -82,6 +96,16 @@ setup() {
   [[ "$output" == *"bin/build-image.sh"* ]]
   [[ "$output" == *'-i "localhost/bluefin-vm-patched'* ]]
   [[ "$output" == *"bin/create-vm.sh"* ]]
+}
+
+@test "just tart up-provisioned stages provisioning before the patched up chain" {
+  run just --dry-run tart up-provisioned
+  # The real host-side writer runs first, so the seed boots through provisioning.
+  [[ "$output" == *"cargo run -- provision"* ]]
+  # ...then the same container -> disk -> import -> boot chain as up-patched.
+  [[ "$output" == *"bin/build-image.sh"* ]]
+  [[ "$output" == *"bin/create-vm.sh"* ]]
+  [[ "$output" == *"tart run"* ]]
 }
 
 @test "just build image tags the patched ref and tracks the default base" {
