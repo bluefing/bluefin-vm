@@ -12,9 +12,7 @@ hand.
   formula, scriptable share/ssh/lifecycle, headless and CI capable. Known
   trade-off: no Linux-guest suspend yet (tracked in the backlog).
 - **Source image:** an arm64 Bluefin bootc container, regenerated from
-  upstream so it stays fresh. (arm64 only lives in the LTS line *today* — a
-  moving upstream constraint, not a choice; which tag currently boots is in
-  docs/BUILDING.md "Which image".)
+  upstream so it stays fresh.
 - **Build:** `bootc-image-builder` via `bin/build-disk.sh`, identical locally
   (Docker/Colima) and in CI (ARM64 Linux runner).
 - **Delivery is a one-time seed:** the VM self-updates via bootc after first
@@ -46,7 +44,16 @@ hand.
   account (username + ssh public key) into the share pre-boot; a guest oneshot
   creates it on first boot and the VM autologs in. Pubkey-only, no password —
   hence autologin (desktop) plus a scoped passwordless-sudo rule (admin), the
-  disposable-dev-VM posture. No provision data → the baked test login. (BL-8.)
+  disposable-dev-VM posture. No provision data → the baked test login.
+
+## Non-goals
+
+- **Intel Macs are out of scope.** The blocker is the runtime: Tart is
+  Apple-Silicon-only, so an Intel host has nothing to run a seed with.
+  Supporting Intel would mean a second runtime (UTM/QEMU), which forks the
+  CLI-first, brew-installable, scriptable, headless/CI-capable design that
+  motivated choosing Tart in the first place — for a platform Apple has already
+  sunset. Validating it would need Intel hardware regardless.
 
 ## Proposed
 
@@ -65,13 +72,12 @@ hand.
 3. **Publish pipeline:** seeds live in R2 at `projectbluefin.dev` (done);
    still open: versioning, and wiring the bucket to build/host from releases.
 4. **First-boot account creation — decided 2026-07-28:** host tooling writes
-   the account into the share; a guest oneshot creates it on first boot (see
-   Decided, BL-8).
+   the account into the share; a guest oneshot creates it on first boot.
 5. **Install trust — verified 2026-07-29.** *Tap trust*: a fully-qualified
    `brew install` self-trusts our formula, but the `tart` dependency (and its
    `softnet` dep) come from the unofficial `openai/tools` tap, which must be
-   tapped + trusted too — documented in README "Install with Homebrew"
-   (Brewfile users add `trusted: true`). *Gatekeeper*: the unsigned/un-notarised
+   tapped + trusted too — documented in the README (Brewfile users add
+   `trusted: true`). *Gatekeeper*: the unsigned/un-notarised
    arm64 binary runs with no quarantine friction (brew strips quarantine on
    formula downloads; the ad-hoc signature suffices to execute) — confirmed on
    the brew-installed tool.

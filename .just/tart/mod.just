@@ -54,7 +54,7 @@ up name=default_name image=default_image:
   echo ">> VM '{{name}}' running detached (window open). Log: $log"
   echo ">> Stop: just tart stop -- attached run: just tart start"
 
-# SSH into a running Tart VM (user: the baked test login; see BL-6).
+# SSH into a running Tart VM (user: the baked test login).
 # --resolver arp because the default DHCP-lease lookup returns nothing on
 # macOS 26; ARP answers for any running VM.
 [doc('SSH into a running Tart VM as the baked test login')]

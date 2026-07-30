@@ -24,8 +24,8 @@ qcow2 image=default_image: (create "qcow2" image)
 raw image=default_image: (create "raw" image)
 
 # Build the derived image (image/Containerfile) into the container store.
-# Passing the configured default image as BASE keeps the layer tracking one
-# source of truth instead of the Containerfile's own ARG default.
+# Passing the configured default_image as BASE builds the layer from it; the
+# Containerfile's own ARG default only applies to a bare build.
 [doc('Build the derived image (image/Containerfile) into the container store')]
 [group('image-build')]
 [no-cd]

@@ -1,9 +1,9 @@
 # Building
 
-Build the Bluefin VM image and disk yourself — which upstream image to use, how
-the build runs locally and in CI, and how to test it. To run a built or
-downloaded VM, see [USAGE.md](USAGE.md); to install the shipped tool, see the
-[README](../README.md).
+This guide covers building the Bluefin VM image and disk yourself: which
+upstream image to use, how the build runs locally and in CI, and how to test it.
+To run a built or downloaded VM, see [USAGE.md](USAGE.md); to install the shipped
+tool, see the [README](../README.md).
 
 From a checkout you can also run the published seed without building at all:
 `just cli run-release up` downloads the seed, imports it, and boots — the same
@@ -22,6 +22,12 @@ one go (see [USAGE.md](USAGE.md)).
 
 ## Which image
 
+Live images publish under **`ghcr.io/projectbluefin/`** — `bluefin` and
+`bluefin-lts`, browsable at
+[projectbluefin/bluefin](https://github.com/projectbluefin/bluefin/pkgs/container/bluefin)
+and [bluefin-lts](https://github.com/projectbluefin/bluefin/pkgs/container/bluefin-lts).
+The old `ghcr.io/ublue-os/` images are **stale — don't use them.**
+
 The mainline Bluefin (`:latest`, `:stable`, `:gts`) is **amd64-only**; ARM64
 builds currently exist only in the `LTS` line. Always use an `*-arm64` (or
 multi-arch `lts`) tag: an arm64 guest runs under the hypervisor with no CPU
@@ -33,23 +39,18 @@ emulation, so it's near-native — an amd64 image would force slow emulation.
 | `bluefin:lts` | multi-arch (amd64 **+ arm64**) |
 | `bluefin:lts-arm64` | arm64 (explicit) |
 
-As of 2026-07 the stable `lts-arm64` ships a broken GNOME (gnome-shell 49.5
-against mutter 49.4) which crash-loops to a black screen on aarch64. The
-GNOME 50 testing image works and is this repo's default:
-
-```
-# gnome-shell 50.0 / mutter 50.0 — validated booting on Apple Silicon
-ghcr.io/ublue-os/bluefin:lts-testing-50-arm64
-```
-
-Override per build with `-i`. Once GNOME 50 lands on the stable tag, swap
-`default_image` in `.just/_config.just` back to `:lts-arm64`.
+The stable `lts-arm64` ships a mismatched GNOME — gnome-shell 49.5 against
+mutter 49.4 — which crash-loops to a black screen on aarch64. As of 2026-07
+`ghcr.io/projectbluefin/bluefin:lts-arm64` still carries that pairing, so it is
+unusable; the `lts-testing` arm64 tags ship a matched gnome-shell/mutter 50 and
+boot. This repo therefore defaults to a GNOME 50 `lts-testing` arm64 tag.
+Override per build with `-i`.
 
 ## How the build works
 
-`bootc-image-builder` does **not** pull the source image itself — it reads it
-from container storage. So every build is two steps: **pull** the image into
-the store, then **build**. `bin/build-disk.sh` auto-selects the container engine:
+`bootc-image-builder` reads the image from container storage. So every build is
+two steps: **pull** the image into the store, then **build**.
+`bin/build-disk.sh` auto-selects the container engine:
 
 - **Linux + Podman (CI):** uses the host's rootful container storage.
   Needs root for loop devices → run via `sudo ./bin/build-disk.sh`.
@@ -60,20 +61,23 @@ the store, then **build**. `bin/build-disk.sh` auto-selects the container engine
   store — the pull step is skipped.
 
 `config.toml` customises the built disk (root filesystem size, a test
-login); its comments explain why each setting exists.
+login).
 
 ## The derived image
 
 `image/Containerfile` layers the guest configuration that the stock image
-lacks and disk-build customisation can't express (the why of each piece is in
-the file's comments): the clipboard-agent session wiring, sshd enabled, the
-host-share mount (condition-gated so share-less boots stay clean), and the
-`~/Shared` symlink. `just build image` builds it into the container store as
-a `localhost/` image — with the same engine auto-selection as the disk build,
-so it works locally and in CI, where the patched build is the default
-distribution artifact. `just tart up-patched` runs the whole chain —
-container → disk → import → boot. A VM seeded this way needs **zero manual
-guest setup**.
+lacks and the disk-build customisation can't express, such as:
+
+- the clipboard-agent session wiring,
+- sshd enabled,
+- the host-share mount and the `~/Shared` symlink.
+
+`just build image` builds it into the container store as a `localhost/` image —
+with the same engine auto-selection as the disk build, so it works locally and
+in CI, where the patched build is the default distribution artefact.
+
+`just tart up-patched` runs the whole chain — container → disk → import → boot.
+A VM seeded this way needs zero manual guest setup.
 
 ## Building locally on the Mac (Docker/Colima)
 
@@ -90,8 +94,8 @@ raw build. Builds land in:
 ## CI build (native ARM64 runner)
 
 `.github/workflows/build-arm-image.yml` runs the same `build-disk.sh` on a
-`ubuntu-24.04-arm` runner (Podman preinstalled) and uploads the image as an
-artifact. Trigger from the Actions tab (`workflow_dispatch`).
+`ubuntu-24.04-arm` runner (Podman pre-installed) and uploads the image as an
+artefact. Trigger from the GitHub Actions tab (`workflow_dispatch`).
 
 > Artifacts are multi-GB; retention is 7 days. A real release belongs in
 > object storage or a GitHub Release.
@@ -110,11 +114,10 @@ just test        # bats + the cli's Rust unit tests — fast inner loop
 just lint        # pre-commit run --all-files: shellcheck, shfmt, hadolint, tests, ...
 ```
 
-A `pre-commit` hook gates every commit; set it up once with
-`pre-commit install`.
+A `pre-commit` hook gates every commit; set it up once with `just setup`.
 
 Those are the offline dev-loop checks. There's also a **runtime** check that
-runs *inside* a booted VM — `just tart smoke <name>` delivers
+runs *inside* a booted VM — `just tart smoke <name>` on the host delivers
 `tests/smoke/guest-checks.sh` through the share, runs it in the guest, and
 reports on the baked patches (sshd, clipboard agent, share). Use it to
 validate a seed actually works, not just that the plumbing is wired.

@@ -1,8 +1,8 @@
 # Running & using a VM
 
-Everything about a built or downloaded VM: starting and stopping it, display
-density, the shared folder, first-boot provisioning, and one-time guest setup
-for stock seeds. To build a VM, see [BUILDING.md](BUILDING.md).
+This guide covers everything about a built or downloaded VM: starting and
+stopping it, display density, the shared folder, first-boot provisioning, and
+one-time guest setup for stock seeds. To build a VM, see [BUILDING.md](BUILDING.md).
 
 ## Running the VM
 
@@ -98,8 +98,8 @@ ln -s /var/mnt/shared/bluefin-share ~/Shared
 
 ```bash
 # Clipboard — the packaged spice-vdagent user unit is static (no [Install]),
-# unordered, and GNOME 50 ignores the legacy autostart entry (upstream bug,
-# BACKLOG BL-1). Wire it in, ordered after the session — unordered it races
+# unordered, and GNOME 50 ignores the legacy autostart entry (upstream bug).
+# Wire it in, ordered after the session — unordered it races
 # the session environment and dies at login:
 mkdir -p ~/.config/systemd/user/spice-vdagent.service.d
 printf '[Unit]\nAfter=graphical-session.target\nPartOf=graphical-session.target\n' \

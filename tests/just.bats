@@ -27,7 +27,9 @@ setup() {
 @test "just build qcow2 supplies the default image (the porcelain holds it)" {
   run just --dry-run build qcow2
   [[ "$output" == *"-i "* ]]
-  [[ "$output" == *"lts-testing-50-arm64"* ]]
+  # Read default_image from the config rather than hardcoding a tag here, so the
+  # test can't drift from it: the porcelain should pass whatever it's set to.
+  [[ "$output" == *"$(just --evaluate default_image)"* ]]
 }
 
 @test "just build qcow2 -i overrides the default image" {

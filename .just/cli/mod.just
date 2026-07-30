@@ -55,7 +55,7 @@ test:
   cd cli && cargo test --quiet
 
 # The Rust gate -- format check, clippy, tests. Also run by the pre-commit
-# hook, so this recipe is the single source of truth for "is the crate clean".
+# hook, so this recipe defines what a clean crate means.
 [doc('Rust gate: fmt check + clippy + tests (also run by pre-commit)')]
 [no-cd]
 [group('quality gate')]

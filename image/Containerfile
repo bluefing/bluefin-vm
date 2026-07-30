@@ -1,8 +1,11 @@
-# Derived VM image: upstream Bluefin plus the guest fixes that neither the
-# stock image nor bootc-image-builder's config.toml can provide (see README
-# "One-time guest setup"). This layer is also the working prototype of the
-# upstream ask in BACKLOG BL-1 -- if Bluefin adopts it, this file shrinks.
-ARG BASE=ghcr.io/ublue-os/bluefin:lts-testing-50-arm64
+# Derived VM image: upstream Bluefin plus the guest configuration the stock image
+# and config.toml can't provide. One piece (the clipboard-agent wiring) works
+# around an upstream bug; the rest is VM/Tart-specific glue (sshd, the host-share
+# mount, ~/Shared, first-boot provisioning) that belongs here regardless.
+# Default base for building this layer by hand. `just build image` overrides it
+# with the configured default_image, so this only needs to be a bootable arm64
+# Bluefin.
+ARG BASE=ghcr.io/projectbluefin/bluefin:lts-testing-arm64
 FROM ${BASE}
 
 # Re-declared so the RUN layers below can read them; BUILD_REF/BUILD_SHA are the
@@ -47,7 +50,7 @@ RUN printf 'enable sshd.service\n' > /usr/lib/systemd/system-preset/45-bluefin-v
     ln -s ../var-mnt-shared.mount \
       /usr/lib/systemd/system/multi-user.target.wants/var-mnt-shared.mount
 
-# 5. First-boot provisioning (BL-8): a oneshot that, when the host has written
+# 5. First-boot provisioning: a oneshot that, when the host has written
 #    account details into the share, creates the user so a downloaded seed
 #    feels personal. Gated on the details file (absent => skipped, baked login
 #    stays); ordered After= the share mount so the file is visible, and Before=

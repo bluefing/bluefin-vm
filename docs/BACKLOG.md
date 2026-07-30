@@ -60,8 +60,7 @@ re-seed it,
         product rule and `just tart up`'s guarded behaviour).
   - [ ] Re-seeding is explicit and clearly destructive (e.g. `--reset` or a
         separate subcommand).
-  - [ ] docs/USAGE.md "Running the VM" documents CLI `up` vs the `just tart up`
-        recipe.
+  - [ ] docs/USAGE.md documents CLI `up` vs the `just tart up` recipe.
 - **Notes:** Today `up()` calls `core::tart::import` unconditionally, which does
   `tart delete` + `tart create` — a second `up` destroys the VM. `just tart up`
   is already incremental; the Rust CLI isn't. Surfaced verifying BL-7
@@ -143,7 +142,7 @@ re-seed it,
         CI produce the identical artifact); the tag is guarded against
         `cli/Cargo.toml`.
   - [x] Formula published to the tap (`bluefing/homebrew-tap`,
-        `Formula/bluefin-vm.rb` — the source of truth, not vendored in this
+        `Formula/bluefin-vm.rb`, which lives in the tap, not vendored in this
         repo): `depends_on "openai/tools/tart"` (the tool shells out to `tart`),
         pins arm64, version scanned from the url.
   - [x] Own tap published and `v0.1.0` cut (2026-07-29); `brew install
@@ -172,8 +171,8 @@ re-seed it,
   - [ ] Desktop story decided: forwarding only covers ssh sessions, not the
         autologin desktop — evaluate USB/YubiKey passthrough (Tart/VZ support)
         or a desktop-side agent.
-  - [ ] Documented (README "working from the VM").
-- **Notes:** Distinct from provisioning (BL-8), which installs a *public* key to
+  - [ ] Documented.
+- **Notes:** Distinct from provisioning, which installs a *public* key to
   get you *into* the VM. This is using keys *from* it. Nothing host-specific is
   baked into the seed.
 

@@ -64,8 +64,7 @@ is *not* provisioning — it is enabled in the base image.
 
 ## Credential model, and why
 
-The one hard rule (BACKLOG BL-8): **public key only, no password through the
-share.** A password would be a secret sitting in a host-visible, backed-up
+The one hard rule: **public key only, no password through the share.** A password would be a secret sitting in a host-visible, backed-up
 folder; we won't put one there.
 
 But a password-*less* account has three consequences, and the rest of the model
@@ -117,14 +116,13 @@ To opt out up front, `bluefin-vm up` takes two flags (`up --help`):
 - **ssh-key auto-detect is narrow.** The host only auto-finds
   `~/.ssh/id_ed25519|id_ecdsa|id_rsa.pub`; non-standard names (e.g. FIDO
   `id_ed25519_sk_*.pub`) aren't found — pass `--ssh-key`. FIDO/`sk` keys also
-  need the token present to authenticate. (BL-14)
+  need the token present to authenticate.
 - **sshd config is untouched** — provisioning only plants a key; it doesn't
   change `PasswordAuthentication` or anything else in the base image.
 - **GUI polkit auth is unhandled.** The passwordless-sudo rule covers
   command-line `sudo`, not polkit (GUI privilege prompts) — a password-less user
   would still be asked for a password there. Untested; much Bluefin admin is CLI
   or Flatpak, so the gap is narrow, but closing it would need a polkit rule.
-  (BL-15)
 - **One account.** The model provisions a single primary user; multi-user or
   per-key policies aren't expressed.
 - **Most reshape-able upstream:** the passwordless-sudo default and

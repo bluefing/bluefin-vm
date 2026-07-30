@@ -68,7 +68,7 @@ Not built yet — where this is headed:
   credential model (autologin, passwordless sudo, hardening).
 - **[Roadmap](docs/ROADMAP.md)** and **[Backlog](docs/BACKLOG.md)** — decisions,
   open questions, and stories.
-- **[File map](docs/FILES.md)** — what each file in the repo does.
+- **[Orientation](docs/ORIENTATION.md)** — a map of what lives where and how the pieces relate.
 
 ## License
 

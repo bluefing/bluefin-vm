@@ -5,8 +5,8 @@
 # present the service is condition-skipped and the baked test login stays the
 # way in.
 #
-# Credential model (BACKLOG BL-8, docs/USAGE.md "First-boot provisioning"): public key
-# only, no password. A password-less account can't be reached through a greeter
+# Credential model: public key only, no password. A password-less account can't
+# be reached through a greeter
 # and can't sudo, so usability comes from three things together:
 #
 # - the ssh key (terminal),

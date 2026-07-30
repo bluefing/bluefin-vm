@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Import a built disk into a Tart VM, replacing the VM if it exists.
+# Import a built disk into a Tart VM, replacing the VM if it exists. macOS only
+# (Tart drives Apple's Virtualisation framework). The disk is a required
+# argument -- no auto-detect: auto-detection once picked a stale disk and booted
+# the wrong VM.
 #
 # Tart boots a RAW disk. A qcow2 is accepted and converted via the builder
 # image's bundled qemu-img (the conversion writes a non-sparse raw over

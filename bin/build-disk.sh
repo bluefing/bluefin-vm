@@ -6,8 +6,7 @@ set -euo pipefail
 # and in CI (ARM64 Linux, Podman), so builds are reproducible in both places.
 #
 # The build is two steps (pull, then build) because the builder reads the image
-# from container storage instead of pulling it; that story and the per-OS engine
-# selection are documented in README "How the build works".
+# from container storage instead of pulling it.
 #
 # Deliberately NOT passed to the builder:
 # - --target-arch: experimental upstream; trips "cannot build iso for different

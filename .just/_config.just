@@ -1,7 +1,5 @@
-# Default source image: the arm64 build that currently boots. Why this testing
-# tag, and when to promote back to stable: docs/BUILDING.md "Which image" (BL-8 tracks
-# it). Override on any build recipe with -i/--image.
-default_image := "ghcr.io/ublue-os/bluefin:lts-testing-50-arm64"
+# Default source image. Override on any build recipe with -i/--image.
+default_image := "ghcr.io/projectbluefin/bluefin:lts-testing-arm64"
 
 # Default VM label -- the display/registration name only. This is NOT the image;
 # pick the source image with -i/--image on the build/vm recipes.

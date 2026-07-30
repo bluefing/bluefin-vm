@@ -2,7 +2,7 @@
 # Lock down a provisioned account: give it a password and drop the passwordless
 # sudo rule that first-boot provisioning added. A downloaded seed's account
 # starts password-less by design (pubkey only) -- run this once if you want the
-# stricter posture. See README "First-boot provisioning".
+# stricter posture.
 set -euo pipefail
 
 # Re-exec as root: this sets a password and edits /etc/sudoers.d. While the
