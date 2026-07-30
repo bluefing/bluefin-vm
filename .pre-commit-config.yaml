@@ -73,6 +73,19 @@ repos:
         always_run: true
         stages: [pre-commit, pre-push]
 
+      # Justfile validator -- `just --summary` compiles the whole tree (the main
+      # Justfile imports every module), so a parse error or unknown-recipe
+      # dependency fails here, pointing at the exact file:line, instead of at
+      # runtime. Non-mutating and no formatting opinion (that would be
+      # `just --fmt`). Near-instant, so always_run like the others.
+      - id: just
+        name: just (validate justfiles)
+        entry: just --summary
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit, pre-push]
+
   # --- Commit message format (conventional commits) ---
   # commitlint: rules in .commitlintrc.yaml extend
   # @commitlint/config-conventional with header-max-length: 80 and

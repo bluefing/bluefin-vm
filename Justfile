@@ -31,6 +31,24 @@ lint:
   pre-commit run --all-files
 
 # Remove build outputs (disk images and the cli's Rust artifacts)
+[confirm("This will delete generated output. Continue?")]
 [group('maintenance')]
 clean: cli::clean
   rm -rf output
+
+# Reclaim the Docker/Colima space builds consume, on top of `clean`: the
+# bootc-store cache volume, cached source and builder images, and unused build
+# cache. All of it is re-pulled or rebuilt on the next `just build`.
+[doc('Reclaim Docker/Colima build space (bootc-store, cached images, build cache)')]
+[confirm("Remove the bootc-store volume, cached Bluefin/builder images, and unused Docker build cache. Continue?")]
+[group('maintenance')]
+[script]
+really-clean: clean
+  # -f / || true so a missing or in-use item is skipped, not fatal.
+  docker volume rm -f bootc-store 2>/dev/null || true
+  # Match by repo, not pinned tags, so it clears whatever source images are cached.
+  imgs=$(docker images -q --filter=reference='ghcr.io/projectbluefin/*')
+  [ -n "$imgs" ] && docker rmi -f $imgs 2>/dev/null || true
+  docker rmi -f quay.io/centos-bootc/bootc-image-builder:latest 2>/dev/null || true
+  docker builder prune -f
+  docker system df
