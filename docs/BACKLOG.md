@@ -61,10 +61,14 @@ re-image it,
   - [ ] Re-imaging is explicit and clearly destructive (e.g. `--reset` or a
         separate subcommand).
   - [ ] docs/modules/cli.md documents CLI `up` vs the `just tart up` recipe.
+  - [ ] Document the update / VM-state story (folded from BL-7): `brew upgrade`
+        replaces the tool only, the VM in `~/.tart` untouched; re-imaging is
+        explicit.
 - **Notes:** Today `up()` calls `core::tart::import` unconditionally, which does
   `tart delete` + `tart create` — a second `up` destroys the VM. `just tart up`
   is already incremental; the Rust CLI isn't. Surfaced verifying BL-7
-  (2026-07-29). The product rule this restores is stated in BL-7's notes.
+  (2026-07-29). Product rule: shipped tooling must never implicitly replace an
+  existing VM — if a VM exists, boot it; re-image only via an explicit reset.
 
 ---
 
@@ -81,7 +85,7 @@ re-image it,
         clipboard, shared folders.
   - [ ] Log each gap as its own story.
 - **Notes:** Display-density and clipboard behaviour are documented in
-  README. Known gap: no suspend (BL-10).
+  `docs/modules/tart.md`. Known gap: no suspend (BL-10).
 
 ### BL-3 — Spike: persistent osbuild build cache  ·  `backlog` · `M`
 
@@ -102,61 +106,6 @@ re-image it,
 - **Acceptance:**
   - [ ] Choose the default (moving tag vs pinned `@sha256`); document the
         trade-off and the `-i` override.
-
-### BL-5 — Fix `create-vm` qcow2→raw non-sparse conversion  ·  `backlog` · `S`
-
-**As** a maintainer,
-**I want** the qcow2→raw conversion to stay sparse,
-**so that** it doesn't fill the host disk.
-
-- **Acceptance:**
-  - [ ] Conversion yields a sparse raw, **or** the flow builds raw directly
-        (current default, which sidesteps it).
-
-### BL-6 — Set the VM login from the host username  ·  `backlog` · `S`
-
-**As** a Mac user,
-**I want** a locally built VM's account to match my username,
-**so that** the VM feels like mine.
-
-- **Acceptance:**
-  - [ ] Derive the `config.toml` user from the host `$USER` (or an explicit
-        argument); keep a documented test-only fallback.
-- **Notes:** Only personalises locally built disks — downloaded disks need
-  BL-8.
-
-### BL-7 — Ship `bluefin-vm` via a Homebrew tap  ·  `ready` · `M`
-
-**As** a Mac user,
-**I want** `brew install` to hand me the Bluefin VM experience,
-**so that** setup is one command.
-
-- **Acceptance:**
-  - [x] Package shape decided (ROADMAP): a prebuilt arm64 binary — the **tool**,
-        not the disk — attached to a GitHub Release, versioned by `v*` tag. The
-        tool downloads the disk at runtime, so disk hosting stays decoupled (no
-        R2 dependency in the formula). GH Releases fits the ~1.6 MB tool; the
-        size objection was about the multi-GB disk.
-  - [x] Release automation: `.github/workflows/release.yml` builds + uploads the
-        tarball and `.sha256` on a `v*` tag, via `bin/package-cli.sh` (local and
-        CI produce the identical artifact); the tag is guarded against
-        `cli/Cargo.toml`.
-  - [x] Formula published to the tap (`bluefing/homebrew-tap`,
-        `Formula/bluefin-vm.rb`, which lives in the tap, not vendored in this
-        repo): `depends_on "openai/tools/tart"` (the tool shells out to `tart`),
-        pins arm64, version scanned from the url.
-  - [x] Own tap published and `v0.1.0` cut (2026-07-29); `brew install
-        bluefing/tap/bluefin-vm` → `bluefin-vm up` → first boot verified end to
-        end (`brew audit --online` clean; install → run → boot). Exercised on a
-        dev Mac and a cleaner run that also walked the `openai/tools` trust
-        chain; a pristine clean-Mac pass stays the ideal final check.
-  - [ ] Update / VM-state story: `brew upgrade` replaces the tool only (the VM
-        lives in `~/.tart`, untouched); re-imaging stays explicit — needs the `up`
-        guard (BL-16) plus a README note once it lands.
-- **Notes:** Own tap first, to iterate without upstream review; move to the
-  `ublue-os` tap once stable. Product rule: shipped tooling must never
-  implicitly replace an existing VM — if a VM exists, boot it; re-image only via
-  an explicit reset.
 
 ### BL-13 — Dev env: use host ssh keys / YubiKey *from* the guest  ·  `backlog` · `M`
 
@@ -241,7 +190,7 @@ re-image it,
 
 - **Acceptance:**
   - [ ] Detect stable shipping matched gnome-shell/mutter 50; update
-        `default_image` and the README image note.
+        `default_image` and the image note in `docs/modules/build.md`.
 - **Notes:** Blocked on upstream — stable currently ships a broken
   gnome-shell/mutter pairing on arm64.
 
@@ -264,6 +213,32 @@ re-image it,
 ---
 
 ## Done
+
+### BL-6 — Set the VM login from the host username  ·  `done` 2026-07-31 · `S`
+
+Met via first-boot provisioning, not the `config.toml` derivation the story
+proposed: `up-provisioned` (and `bluefin-vm up`) stage a `$USER` account the
+guest oneshot creates on boot, so a locally-built disk feels like yours.
+`config.toml` still bakes the `bluefin` login as the documented test-only
+fallback.
+
+### BL-5 — Fix `create-vm` qcow2→raw non-sparse conversion  ·  `done` 2026-07-31 · `S`
+
+Sidestepped by the raw-direct flow — the story's own second acceptance. `up` /
+`up-patched` build with `build-disk.sh -f raw` and Tart boots raw, so the
+non-sparse qcow2→raw conversion is never on the path; it survives in
+`create-vm.sh` only as an off-main-path fallback.
+
+### BL-7 — Ship `bluefin-vm` via a Homebrew tap  ·  `done` 2026-07-31 · `M`
+
+Shipped from an own tap (`bluefing/homebrew-tap`): a prebuilt arm64 binary — the
+tool, not the disk — on a GitHub Release, built by
+`.github/workflows/release.yml` on a `v*` tag via `bin/package-cli.sh` (local and
+CI identical). The formula `depends_on openai/tools/tart`, pins arm64, and scans
+its version from the url. `v0.1.0` cut 2026-07-29 and verified end-to-end:
+`brew install bluefing/tap/bluefin-vm` → `bluefin-vm up` → first boot, `brew
+audit --online` clean. Own tap first to iterate without upstream review; move to
+`ublue-os` once stable. The update / VM-state box moved to BL-16.
 
 ### BL-12 — `bluefin-vm` tool: disk → running VM pipeline  ·  `done` 2026-07-29 · `M`
 
