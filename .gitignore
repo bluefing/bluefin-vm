@@ -3,3 +3,8 @@ output/
 
 # macOS junk
 .DS_Store
+
+# Python bytecode / tool caches
+__pycache__/
+*.py[cod]
+.ruff_cache/

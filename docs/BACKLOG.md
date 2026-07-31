@@ -220,12 +220,14 @@ re-image it,
 **so that** the first-boot logic stays readable and maintainable.
 
 - **Acceptance:**
-  - [ ] Replace the embedded `configparser` heredoc (editing
+  - [x] Replace the embedded `configparser` heredoc (editing
         `/etc/gdm/custom.conf` for autologin) with a non-Python approach —
         `crudini`, a GDM drop-in, or a tidy `sed` — or extract it to a helper.
   - [ ] Review the script for other cruft; decompose if it's carrying too many
         concerns (account, ssh, sudoers, autologin, dconf lock-disable).
-- **Notes:** Flagged 2026-07-29.
+- **Notes:** Flagged 2026-07-29. Heredoc extracted 2026-07-31 to a standalone
+  helper (`/usr/libexec/bluefin-vm-gdm-autologin`, a `configparser` script);
+  autologin verified end-to-end. The decompose review remains.
 
 ---
 

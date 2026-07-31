@@ -52,25 +52,10 @@ chmod 440 "$sudoers"
 
 # Autologin (no greeter) when the host asked for it -- a password-less account
 # is only reachable at the desktop this way, and (below) the idle lock is
-# disabled so it can't trap itself. Edit custom.conf in place with configparser
-# so any settings the base image ships survive.
+# disabled so it can't trap itself. bluefin-vm-gdm-autologin edits custom.conf
+# in place so any settings the base image ships survive.
 if [[ -e $pdir/autologin ]]; then
-  python3 - "$user" <<'PY'
-import configparser, os, sys
-user = sys.argv[1]
-path = "/etc/gdm/custom.conf"
-cfg = configparser.ConfigParser()
-cfg.optionxform = str  # keep key case (GDM is case-sensitive)
-if os.path.exists(path):
-    cfg.read(path)
-if not cfg.has_section("daemon"):
-    cfg.add_section("daemon")
-cfg["daemon"]["AutomaticLoginEnable"] = "true"
-cfg["daemon"]["AutomaticLogin"] = user
-os.makedirs("/etc/gdm", exist_ok=True)
-with open(path, "w") as f:
-    cfg.write(f)
-PY
+  /usr/libexec/bluefin-vm-gdm-autologin "$user"
 
   # A password-less account can't clear the lock screen either, so an idle lock
   # would trap the autologin desktop until reboot. Disable it with a dconf system

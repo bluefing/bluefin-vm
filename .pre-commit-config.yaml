@@ -51,6 +51,16 @@ repos:
         types: [file]
         stages: [pre-commit, pre-push]
 
+  # Python lint + format for the guest helper scripts (image/*.py) -- ruff,
+  # pinned like the linters above. ruff-check validates (commit + push, no
+  # mutation); ruff-format is the commit-only fixer, matching shfmt.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.1
+    hooks:
+      - id: ruff-check
+        stages: [pre-commit, pre-push]
+      - id: ruff-format
+
   - repo: local
     hooks:
       - id: tests

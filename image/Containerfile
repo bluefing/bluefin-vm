@@ -56,10 +56,12 @@ RUN printf 'enable sshd.service\n' > /usr/lib/systemd/system-preset/45-bluefin-v
 #    stays); ordered After= the share mount so the file is visible, and Before=
 #    login/greeter so the account and its autologin exist first. provision.sh
 #    carries the credential-model rationale. bluefin-vm-harden is the opt-in
-#    lock-down (password + drop the passwordless-sudo rule).
+#    lock-down (password + drop the passwordless-sudo rule); bluefin-vm-gdm-autologin
+#    is the small helper provision.sh calls to set GDM autologin.
 COPY provision.sh /usr/libexec/bluefin-vm-provision
 COPY harden.sh /usr/bin/bluefin-vm-harden
-RUN chmod 0755 /usr/libexec/bluefin-vm-provision /usr/bin/bluefin-vm-harden && \
+COPY gdm-autologin.py /usr/libexec/bluefin-vm-gdm-autologin
+RUN chmod 0755 /usr/libexec/bluefin-vm-provision /usr/bin/bluefin-vm-harden /usr/libexec/bluefin-vm-gdm-autologin && \
     printf '[Unit]\nDescription=First-boot provisioning from the host share (bluefin-vm)\nConditionPathExists=/var/mnt/shared/bluefin-share/.bluefin-vm/username\nAfter=var-mnt-shared.mount\nBefore=gdm.service systemd-user-sessions.service\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStart=/usr/libexec/bluefin-vm-provision\n\n[Install]\nWantedBy=multi-user.target\n' \
       > /usr/lib/systemd/system/bluefin-vm-provision.service && \
     ln -s ../bluefin-vm-provision.service \
