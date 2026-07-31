@@ -3,7 +3,7 @@ name: Release bluefin-vm
 # Cuts a tool release: on a `v*` tag, build the `bluefin-vm` binary on a native
 # Apple-Silicon runner and attach a prebuilt tarball (+ sha256) to the GitHub
 # Release. This is the artifact the Homebrew tap fetches -- it ships the TOOL,
-# not the seed, so the seed's hosting (R2, manual) is independent of releases.
+# not the disk, so the disk's hosting (R2, manual) is independent of releases.
 # The build runs bin/package-cli.sh, the same script used locally, so the
 # release artifact is identical to one built by hand.
 

@@ -3,9 +3,9 @@ set -euo pipefail
 
 # Build the `bluefin-vm` tool into a release tarball for the Homebrew tap.
 #
-# The brew formula ships the TOOL, not the seed: it fetches this tarball from a
+# The brew formula ships the TOOL, not the disk: it fetches this tarball from a
 # GitHub Release (versioned by git tag) and installs the binary; the installed
-# tool downloads the seed at runtime. So the seed's hosting (R2, manual) is
+# tool downloads the disk at runtime. So the disk's hosting (R2, manual) is
 # fully decoupled from releasing the tool. CI (.github/workflows/release.yml)
 # runs this exact script on a native arm64 macOS runner -- local and CI produce
 # the identical artifact. Assumes CWD = repo root.

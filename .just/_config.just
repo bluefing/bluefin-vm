@@ -8,7 +8,7 @@ default_name := "Bluefin"
 default_ref := "ghcr.io/projectbluefin/bluefin-vm:latest"
 
 # Host folder shared into the VM -- the durable tier: data written
-# here survives VM re-seed/reset and is visible to macOS + Time Machine.
+# here survives VM re-image/reset and is visible to macOS + Time Machine.
 # Deliberately NOT under ~/Documents: that folder is iCloud-synced on many
 # Macs, and evicted "dataless" files would stall guest reads.
 default_share := env("TART_SHARE_DIR", env("HOME") / "bluefin-share")

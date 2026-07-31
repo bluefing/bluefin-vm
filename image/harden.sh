@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Lock down a provisioned account: give it a password and drop the passwordless
-# sudo rule that first-boot provisioning added. A downloaded seed's account
+# sudo rule that first-boot provisioning added. A downloaded disk's account
 # starts password-less by design (pubkey only) -- run this once if you want the
 # stricter posture.
 set -euo pipefail

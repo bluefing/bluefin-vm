@@ -27,9 +27,9 @@ brew install bluefing/tap/bluefin-vm
 bluefin-vm up
 ```
 
-`bluefin-vm up` downloads the published seed, imports it into Tart, provisions
+`bluefin-vm up` downloads the published disk, imports it into Tart, provisions
 your account, and boots the VM. The formula installs only the tool (~1.6 MB);
-the multi-GB seed is downloaded at runtime.
+the multi-GB disk is downloaded at runtime.
 
 Brewfile installs and the trust details are in the
 [tap's README](https://github.com/bluefing/homebrew-tap).
@@ -49,9 +49,9 @@ Not built yet — where this is headed:
 - **Interactive setup (TUI)** — a [ratatui](https://ratatui.rs) front-end over
   the same core, to customise the VM (account, ssh key, autologin, CPU/memory,
   image flavour) interactively instead of via flags.
-- **Flavours** — pick a Bluefin variant (e.g. `bluefin-dx`) as the seed; each is
+- **Flavours** — pick a Bluefin variant (e.g. `bluefin-dx`) as the base; each is
   just a different upstream image.
-- **Automated seed delivery** — CI builds and publishes seeds so downloads stay
+- **Automated disk delivery** — CI builds and publishes disks so downloads stay
   fresh without manual uploads.
 - **Host key integration** — use your host ssh keys / YubiKey from inside the
   guest via agent forwarding, no secrets copied in.
@@ -60,15 +60,20 @@ Not built yet — where this is headed:
 
 ## Docs
 
-- **[Building](docs/BUILDING.md)** — build the image and disk yourself: which
-  upstream image to use, local and CI builds, and tests.
-- **[Running & using a VM](docs/USAGE.md)** — start/stop/ssh, display density,
-  the shared folder, and one-time guest setup for stock seeds.
+Module docs double as `just <module> help` in the terminal:
+
+- **[Building](docs/modules/build.md)** — build the image and disk yourself:
+  which upstream image to use, and local and CI builds.
+- **[Running a VM](docs/modules/tart.md)** — the three ways up, ssh, display
+  density, the shared folder, and one-time guest setup for stock disks.
+- **[The tool](docs/modules/cli.md)** — what `bluefin-vm` does and how the
+  recipes drive it.
 - **[First-boot provisioning](docs/PROVISIONING.md)** — the account and
   credential model (autologin, passwordless sudo, hardening).
 - **[Roadmap](docs/ROADMAP.md)** and **[Backlog](docs/BACKLOG.md)** — decisions,
   open questions, and stories.
-- **[Orientation](docs/ORIENTATION.md)** — a map of what lives where and how the pieces relate.
+- **[Orientation](docs/modules/root.md)** — a map of what lives where and how the
+  pieces relate.
 
 ## License
 

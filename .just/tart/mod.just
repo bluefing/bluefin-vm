@@ -20,7 +20,7 @@ mod cli '../cli/'
 up-patched name=default_name: (build::image) (build::raw patched_image) (import name) (up name)
 
 # up-patched, but stage first-boot provisioning into the share first (via the
-# real `bluefin-vm provision`), so the freshly built seed boots THROUGH
+# real `bluefin-vm provision`), so the freshly built disk boots THROUGH
 # provisioning into your own account rather than the baked test login -- the
 # inner loop for changing image/provision.sh. The account is host $USER with an
 # autodetected ssh key; for other accounts or flags, run `just cli run provision
@@ -71,7 +71,7 @@ up name=default_name image=default_image:
   echo ">> Stop: just tart stop -- attached run: just tart start"
 
 # SSH into a running Tart VM. Defaults to your own host account -- the one
-# provisioning creates -- so a provisioned seed needs no flags; pass --user/-u
+# provisioning creates -- so a provisioned VM needs no flags; pass --user/-u
 # for the baked bluefin login or any other account. The default is the literal
 # $USER, expanded by the shell at run time.
 [doc('SSH into a running Tart VM (--user; default: your host account)')]
@@ -95,7 +95,7 @@ ip name=default_name:
 # recipe's exit code is the guest's (checks pass/fail). The VM must already be
 # up with the share attached (just tart up / start). Host-key checking is off:
 # test VMs are disposable and re-keyed each rebuild. Defaults to the baked
-# bluefin login -- smoke validates baked patches on a fresh seed, where a
+# bluefin login -- smoke validates baked patches on a fresh disk, where a
 # provisioned account may not exist; pass --user/-u for a provisioned VM.
 [doc('Run the guest smoke test in a running VM; assert the share round-trip')]
 [arg('user', long, short)]

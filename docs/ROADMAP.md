@@ -15,11 +15,11 @@ hand.
   upstream so it stays fresh.
 - **Build:** `bootc-image-builder` via `bin/build-disk.sh`, identical locally
   (Docker/Colima) and in CI (ARM64 Linux runner).
-- **Delivery is a one-time seed:** the VM self-updates via bootc after first
-  boot. Tooling never re-seeds an existing VM — updates arrive inside;
-  re-seeding is an explicit, clearly destructive reset.
+- **Delivery is a one-time disk:** the VM self-updates via bootc after first
+  boot. Tooling never re-images an existing VM — updates arrive inside;
+  re-imaging is an explicit, clearly destructive reset.
 - **Install: brew installs a thin tool** (`bluefin-vm`) — *not* a multi-GB
-  cask, *not* a local build. The tool downloads the CI-built seed and imports +
+  cask, *not* a local build. The tool downloads the CI-built disk and imports +
   provisions it locally (package shape "downloader", decided 2026-07-28).
   **Rust** — a single static binary, and aligns with the upstream stack (bootc
   is Rust). `clap` for the CLI now, `ratatui` for a TUI later, both driving one
@@ -28,14 +28,14 @@ hand.
     arm64 binary attached to a GitHub Release** (built by
     `.github/workflows/release.yml`, versioned by `v*` tag). The tool is ~1.6
     MB, so GitHub Releases fits it — the size objection that ruled GH Releases
-    out was about the multi-GB *seed*, a separate artifact the tool fetches at
-    runtime. This keeps releasing the tool fully decoupled from the seed's R2
+    out was about the multi-GB *disk*, a separate artifact the tool fetches at
+    runtime. This keeps releasing the tool fully decoupled from the disk's R2
     hosting. Shipped first from an **own tap** (`bluefing/homebrew-tap`) to
     iterate without upstream review; move to the `ublue-os` tap once stable.
-- **Seed hosting: Cloudflare R2**, served at `projectbluefin.dev`, **live
+- **Disk hosting: Cloudflare R2**, served at `projectbluefin.dev`, **live
   2026-07-28** (`projectbluefin.dev/bluefin-vm-raw-arm64.zip` — anonymous,
   resumable). Long-term the bucket builds/hosts from repo releases, so this
-  side ships no large files itself. GitHub Releases ruled out: the seed is
+  side ships no large files itself. GitHub Releases ruled out: the disk is
   ~2.75 GiB zipped (1.989 GiB even at max zstd — clears the 2 GiB cap by only
   ~11 MiB, too fragile as the image grows).
 - **Upstreaming:** the repo moves into `ublue-os` when ready (Jorge offered;
@@ -49,7 +49,7 @@ hand.
 ## Non-goals
 
 - **Intel Macs are out of scope.** The blocker is the runtime: Tart is
-  Apple-Silicon-only, so an Intel host has nothing to run a seed with.
+  Apple-Silicon-only, so an Intel host has nothing to run the VM with.
   Supporting Intel would mean a second runtime (UTM/QEMU), which forks the
   CLI-first, brew-installable, scriptable, headless/CI-capable design that
   motivated choosing Tart in the first place — for a platform Apple has already
@@ -58,9 +58,9 @@ hand.
 ## Proposed
 
 - **Flavours:** Bluefin variants are just different bootc images (e.g.
-  `bluefin-dx`), so a flavour seed is this pipeline pointed at that image.
+  `bluefin-dx`), so a flavour is this pipeline pointed at that image.
 - **Durable-data model:** three tiers — OS (replaced by updates), VM home
-  (survives updates, dies on re-seed), host share (survives everything).
+  (survives updates, dies on re-image), host share (survives everything).
   The VM is disposable; the share is durable.
 
 ## Open questions
@@ -69,7 +69,7 @@ hand.
    the full parity audit against the goal.
 2. **Brew package shape — decided 2026-07-28:** a thin Rust downloader tool
    (see Decided).
-3. **Publish pipeline:** seeds live in R2 at `projectbluefin.dev` (done);
+3. **Publish pipeline:** disks live in R2 at `projectbluefin.dev` (done);
    still open: versioning, and wiring the bucket to build/host from releases.
 4. **First-boot account creation — decided 2026-07-28:** host tooling writes
    the account into the share; a guest oneshot creates it on first boot.

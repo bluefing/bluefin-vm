@@ -2,14 +2,14 @@
 
 Agent-facing context. **What the project is and how to install it live in
 [README.md](README.md); how the build works, which image to use, and the build
-gotchas live in [docs/BUILDING.md](docs/BUILDING.md).** Read them; don't restate
-here. This file holds the guardrails, a pointer to the file map, and the style
-mandate.
+gotchas live in [docs/modules/build.md](docs/modules/build.md) (`just build
+help`).** Read them; don't restate here. This file holds the guardrails, a
+pointer to the file map, and the style mandate.
 
-## Guardrails (don't regress — docs/BUILDING.md explains the why of each)
+## Guardrails (don't regress — docs/modules/build.md explains the why of each)
 
 - Image: always an `*-arm64` / `lts` tag (amd64 forces slow emulation).
-  *Which* tag currently boots changes — see docs/BUILDING.md.
+  *Which* tag currently boots changes — see docs/modules/build.md.
 - Never pass `--target-arch`; there is no `--local` flag. Build ARM on an
   ARM host.
 - Keep `config.toml` (20 GiB root, auto-read at `/config.toml`) — without it
@@ -23,8 +23,8 @@ mandate.
 ## Files
 
 Each file documents itself in its own header, so read the file for its scope,
-purpose, and rationale. [docs/ORIENTATION.md](docs/ORIENTATION.md) is only the
-map: what lives where and how the pieces relate.
+purpose, and rationale. [docs/modules/root.md](docs/modules/root.md) (`just
+help`) is only the map: what lives where and how the pieces relate.
 
 ## Verify a change
 

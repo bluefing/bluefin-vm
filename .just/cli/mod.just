@@ -6,7 +6,7 @@ import '../_common.just'
 # on PATH so `cargo` is always found, whoever invokes the recipe.
 export PATH := env('HOME') / '.cargo/bin' + ':' + env('PATH')
 
-# The `bluefin-vm` tool: downloads a seed, imports it into Tart, and runs it.
+# The `bluefin-vm` tool: downloads a disk, imports it into Tart, and runs it.
 # Recipes wrap cargo so the crate is driven the same way as the rest of the
 # repo. [no-cd] keeps them running from the repo root, then they cd into cli/.
 
@@ -24,7 +24,7 @@ build:
 run *args:
   cd cli && cargo run -- {{args}}
 
-# Debug `run` inflates the multi-GiB seed far too slowly, so real work (up,
+# Debug `run` inflates the multi-GiB disk far too slowly, so real work (up,
 # extract) goes through the optimised build.
 [doc('Run the optimised binary, forwarding ARGS (e.g. `just cli run-release up`)')]
 [no-cd]

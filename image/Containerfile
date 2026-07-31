@@ -14,7 +14,7 @@ ARG BASE
 ARG BUILD_REF=unknown
 ARG BUILD_SHA=unknown
 
-# 0. Build identity: stamp the source ref, commit, and base image so any seed
+# 0. Build identity: stamp the source ref, commit, and base image so any disk
 #    self-identifies (`cat /usr/lib/bluefin-vm/build-info`) regardless of how it
 #    is later named or published. No timestamp -- keeps the layer reproducible.
 RUN mkdir -p /usr/lib/bluefin-vm && \
@@ -27,7 +27,7 @@ RUN mkdir -p /usr/lib/bluefin-vm && \
 #    channel skip it at zero cost) and ordered After= the session, because an
 #    unordered start races the session environment and exits in ~40ms with
 #    "could not connect to X-server".
-# 2. ~/Shared: seed new users (created from /etc/skel) with the symlink to
+# 2. ~/Shared: give new users (created from /etc/skel) the symlink to
 #    the host share's guest-side mountpoint.
 RUN mkdir -p /usr/lib/systemd/user/graphical-session.target.wants \
              /usr/lib/systemd/user/spice-vdagent.service.d && \
@@ -51,7 +51,7 @@ RUN printf 'enable sshd.service\n' > /usr/lib/systemd/system-preset/45-bluefin-v
       /usr/lib/systemd/system/multi-user.target.wants/var-mnt-shared.mount
 
 # 5. First-boot provisioning: a oneshot that, when the host has written
-#    account details into the share, creates the user so a downloaded seed
+#    account details into the share, creates the user so a downloaded disk
 #    feels personal. Gated on the details file (absent => skipped, baked login
 #    stays); ordered After= the share mount so the file is visible, and Before=
 #    login/greeter so the account and its autologin exist first. provision.sh

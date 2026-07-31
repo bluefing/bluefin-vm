@@ -52,15 +52,15 @@ Finished stories move to **Done** with the date.
 
 **As** a user,
 **I want** a re-run of `bluefin-vm up` to boot my existing VM, not silently
-re-seed it,
+re-image it,
 **so that** I never lose VM state to a repeat command.
 
 - **Acceptance:**
   - [ ] If the named VM exists, `up` boots it — no re-import (matches the
         product rule and `just tart up`'s guarded behaviour).
-  - [ ] Re-seeding is explicit and clearly destructive (e.g. `--reset` or a
+  - [ ] Re-imaging is explicit and clearly destructive (e.g. `--reset` or a
         separate subcommand).
-  - [ ] docs/USAGE.md documents CLI `up` vs the `just tart up` recipe.
+  - [ ] docs/modules/cli.md documents CLI `up` vs the `just tart up` recipe.
 - **Notes:** Today `up()` calls `core::tart::import` unconditionally, which does
   `tart delete` + `tart create` — a second `up` destroys the VM. `just tart up`
   is already incremental; the Rust CLI isn't. Surfaced verifying BL-7
@@ -113,7 +113,7 @@ re-seed it,
   - [ ] Conversion yields a sparse raw, **or** the flow builds raw directly
         (current default, which sidesteps it).
 
-### BL-6 — Seed the VM login from the host username  ·  `backlog` · `S`
+### BL-6 — Set the VM login from the host username  ·  `backlog` · `S`
 
 **As** a Mac user,
 **I want** a locally built VM's account to match my username,
@@ -122,7 +122,7 @@ re-seed it,
 - **Acceptance:**
   - [ ] Derive the `config.toml` user from the host `$USER` (or an explicit
         argument); keep a documented test-only fallback.
-- **Notes:** Only personalises locally built seeds — downloaded seeds need
+- **Notes:** Only personalises locally built disks — downloaded disks need
   BL-8.
 
 ### BL-7 — Ship `bluefin-vm` via a Homebrew tap  ·  `ready` · `M`
@@ -133,10 +133,10 @@ re-seed it,
 
 - **Acceptance:**
   - [x] Package shape decided (ROADMAP): a prebuilt arm64 binary — the **tool**,
-        not the seed — attached to a GitHub Release, versioned by `v*` tag. The
-        tool downloads the seed at runtime, so seed hosting stays decoupled (no
+        not the disk — attached to a GitHub Release, versioned by `v*` tag. The
+        tool downloads the disk at runtime, so disk hosting stays decoupled (no
         R2 dependency in the formula). GH Releases fits the ~1.6 MB tool; the
-        size objection was about the multi-GB seed.
+        size objection was about the multi-GB disk.
   - [x] Release automation: `.github/workflows/release.yml` builds + uploads the
         tarball and `.sha256` on a `v*` tag, via `bin/package-cli.sh` (local and
         CI produce the identical artifact); the tag is guarded against
@@ -151,11 +151,11 @@ re-seed it,
         dev Mac and a cleaner run that also walked the `openai/tools` trust
         chain; a pristine clean-Mac pass stays the ideal final check.
   - [ ] Update / VM-state story: `brew upgrade` replaces the tool only (the VM
-        lives in `~/.tart`, untouched); re-seed stays explicit — needs the `up`
+        lives in `~/.tart`, untouched); re-imaging stays explicit — needs the `up`
         guard (BL-16) plus a README note once it lands.
 - **Notes:** Own tap first, to iterate without upstream review; move to the
   `ublue-os` tap once stable. Product rule: shipped tooling must never
-  implicitly replace an existing VM — if a VM exists, boot it; re-seed only via
+  implicitly replace an existing VM — if a VM exists, boot it; re-image only via
   an explicit reset.
 
 ### BL-13 — Dev env: use host ssh keys / YubiKey *from* the guest  ·  `backlog` · `M`
@@ -174,7 +174,7 @@ re-seed it,
   - [ ] Documented.
 - **Notes:** Distinct from provisioning, which installs a *public* key to
   get you *into* the VM. This is using keys *from* it. Nothing host-specific is
-  baked into the seed.
+  baked into the disk.
 
 ### BL-14 — Provisioning: robust ssh-key selection  ·  `backlog` · `S`
 
@@ -263,9 +263,9 @@ re-seed it,
 
 ## Done
 
-### BL-12 — `bluefin-vm` tool: seed → running VM pipeline  ·  `done` 2026-07-29 · `M`
+### BL-12 — `bluefin-vm` tool: disk → running VM pipeline  ·  `done` 2026-07-29 · `M`
 
-One command turns a published seed into a running VM: `up` chains `download`
+One command turns a published disk into a running VM: `up` chains `download`
 (resumable, checksum-verified) → `extract` (streams `image/disk.raw` out of the
 zip64 archive) → `import` (ports `create-vm.sh`: `tart create --linux`,
 APFS-clone the raw in, set cpu/memory/display + `--display-refit`) → provision →
@@ -274,12 +274,12 @@ also exposed as subcommands for debugging. `import`/`up` shell out to `tart`
 (BL-7's formula depends on it).
 
 The import → provision → boot leg was live-verified as part of BL-8
-(2026-07-28). End-to-end from the published R2 seed (download → extract) is the
+(2026-07-28). End-to-end from the published R2 disk (download → extract) is the
 clean-Mac check folded into BL-7.
 
 ### BL-8 — First-boot provisioning via the durable share  ·  `done` 2026-07-28 · `M`
 
-A downloaded seed is personalised at first boot: the host writes the account
+A downloaded disk is personalised at first boot: the host writes the account
 into the share (`core::provision` / `bluefin-vm provision`, called by `up`); a
 gated oneshot (`bluefin-vm-provision.service` + `image/provision.sh`) creates
 it, then clears the file. Credential model: pubkey-only → autologin + a scoped

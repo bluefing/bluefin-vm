@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# First-boot provisioning for a downloaded (generic) seed. The host writes the
+# First-boot provisioning for a downloaded (generic) disk. The host writes the
 # account details into the durable share before boot; this oneshot creates that
-# account so a shipped seed feels personal, without a greeter. With no details
+# account so a shipped disk feels personal, without a greeter. With no details
 # present the service is condition-skipped and the baked test login stays the
 # way in.
 #
@@ -88,5 +88,5 @@ PY
 fi
 
 # Applied -- clear the details from the durable share. The host re-writes them
-# for the next fresh seed, and nothing sensitive lingers (public key only).
+# for the next fresh disk, and nothing sensitive lingers (public key only).
 rm -rf "$pdir"

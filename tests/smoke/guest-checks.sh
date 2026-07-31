@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Guest-side smoke test for a booted Bluefin VM seed. Run it INSIDE the VM
+# Guest-side smoke test for a booted Bluefin VM. Run it INSIDE the VM
 # (a GUI terminal, or over `just tart ssh`). It writes a result log back to
 # the host through the shared folder -- which doubles as the share's own
 # round-trip proof: if the host sees the log, the share works.

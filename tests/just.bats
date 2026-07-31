@@ -84,7 +84,7 @@ setup() {
   [[ "$output" == *"tests/smoke/guest-checks.sh"* ]]
   [[ "$output" == *"tart ip"* ]]
   [[ "$output" == *"bash ~/Shared/guest-checks.sh"* ]]
-  # Defaults to the baked login (the account a fresh seed always has).
+  # Defaults to the baked login (the account a fresh disk always has).
   [[ "$output" == *"bluefin@"* ]]
   # host generates the run id and asserts that exact file came back
   [[ "$output" == *"run_id="* ]]
@@ -100,7 +100,7 @@ setup() {
 
 @test "just tart up-provisioned stages provisioning before the patched up chain" {
   run just --dry-run tart up-provisioned
-  # The real host-side writer runs first, so the seed boots through provisioning.
+  # The real host-side writer runs first, so the disk boots through provisioning.
   [[ "$output" == *"cargo run -- provision"* ]]
   # ...then the same container -> disk -> import -> boot chain as up-patched.
   [[ "$output" == *"bin/build-image.sh"* ]]

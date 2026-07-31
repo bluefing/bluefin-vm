@@ -1,12 +1,12 @@
 # First-boot provisioning
 
-This document describes how a downloaded, one-size-fits-all seed is customised
+This document describes how a downloaded, one-size-fits-all disk is customised
 to become your VM on first boot. It covers what provisioning delivers, how the
 mechanism works, limitations, and the reasoning behind the credential model.
 
 ## What it delivers
 
-A published seed is byte-identical for everyone, so it can't carry your account
+A published disk is byte-identical for everyone, so it can't carry your account
 from build time. Provisioning closes that gap: the host writes your account
 details into the share before boot, and a guest service applies them on first
 boot.
@@ -90,7 +90,7 @@ another name, ruled out by the decided no-greeter goal.)
 
 This is the **disposable-dev-VM posture**: the VM is throwaway and holds no
 durable secrets — those live host-side in the share, behind macOS's own auth.
-Rooting a VM you can re-seed in minutes is low-consequence, so the convenience
+Rooting a VM you can re-image in minutes is low-consequence, so the convenience
 is worth it — the same posture cloud images, WSL, and vagrant boxes take.
 
 ## Trade-offs and hardening
@@ -163,7 +163,7 @@ To opt out up front, `bluefin-vm up` takes two flags (`up --help`):
 
 [^hygiene]: The durable share is the user's *data* tier, so provisioning cleans
     up after itself. Nothing is lost by deleting — the host re-writes the
-    details for each fresh seed — and it is public-key material anyway, so even
+    details for each fresh disk — and it is public-key material anyway, so even
     mid-provision nothing secret sits in a host-visible, backed-up folder.
 
 [^ordering]: `After=var-mnt-shared.mount` so the provision files are visible
