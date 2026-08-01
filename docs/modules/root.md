@@ -14,8 +14,8 @@ them. Reach into a module for its own context with `just <module> help`.
 - **`bin/`** (run from repo root) — `build-disk.sh` (image → bootable disk via
   bootc-image-builder, the same entrypoint locally and in CI), `build-image.sh`
   (build `image/Containerfile` into the store as a `localhost/` ref),
-  `create-vm.sh` (import a disk into Tart), `package-cli.sh` (the tool's release
-  tarball).
+  `package-cli.sh` (the tool's release tarball). Importing a disk into Tart is
+  the `bluefin-vm` CLI's job (`import`), which the `just tart` recipes call.
 - **`config.toml`, `image/`** — the disk/image inputs. `config.toml` holds
   disk-build concerns only (root size, the test login); `image/Containerfile`
   layers the OS-side guest fixes it can't express; `image/provision.sh` and

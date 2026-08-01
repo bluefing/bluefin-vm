@@ -85,7 +85,10 @@ re-image it,
         clipboard, shared folders.
   - [ ] Log each gap as its own story.
 - **Notes:** Display-density and clipboard behaviour are documented in
-  `docs/modules/tart.md`. Known gap: no suspend (BL-10).
+  `docs/modules/tart.md`. Guest resolution and desktop scale are now
+  user-settable per VM via `bluefin-vm setup` (the Refit toggle, off = fixed
+  resolution + scale applied at first boot); the audit should judge that
+  against true fullscreen parity. Known gap: no suspend (BL-10).
 
 ### BL-3 — Spike: persistent osbuild build cache  ·  `backlog` · `M`
 
@@ -226,8 +229,9 @@ fallback.
 
 Sidestepped by the raw-direct flow — the story's own second acceptance. `up` /
 `up-patched` build with `build-disk.sh -f raw` and Tart boots raw, so the
-non-sparse qcow2→raw conversion is never on the path; it survives in
-`create-vm.sh` only as an off-main-path fallback.
+non-sparse qcow2→raw conversion was never on the path. It later dropped out
+entirely when the import logic consolidated into the `bluefin-vm` CLI (raw
+only); bring it back only if a qcow2 import is ever actually needed.
 
 ### BL-7 — Ship `bluefin-vm` via a Homebrew tap  ·  `done` 2026-07-31 · `M`
 

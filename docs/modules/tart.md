@@ -78,20 +78,29 @@ the `bluefin-vm-harden` lock-down, see `docs/PROVISIONING.md`.
 ## Display density
 
 Tart maps one guest pixel to one host **point**, so the VM's sharpness comes
-from the *host display mode*, not the guest resolution:
+from the *host display mode*, not the guest resolution. Two mutually exclusive
+modes, chosen by the **Refit** toggle in `bluefin-vm setup`:
 
-- **Default** — display-refit follows the window. On a default host mode this
-  renders at 1×: right-sized, slightly soft next to native macOS text.
-- **Crisp** — switch the host to a denser mode (e.g. 2880×1800 on a 15" panel)
-  and fullscreen; refit then matches the guest at near-native density. Choose UI
-  size inside GNOME (Scale 100% for space, 200% for larger UI at the same
-  crispness). The cost is that the host mode is global, so macOS shrinks too.
+- **Refit on (the default)** — Tart's `--display-refit` continuously resizes the
+  guest to follow the window and fullscreen. Convenient, but the resolution is
+  whatever the window is, so a fixed resolution or a pre-set guest scale can't
+  hold; the profile's `display`/`scale` are ignored in this mode. For crisp text
+  here, switch the *host* to a denser mode and fullscreen — the cost is the host
+  mode is global, so macOS shrinks too.
+- **Refit off** — the guest runs at a fixed `--display` resolution, and the
+  guest desktop scale you set (125–200%) is applied at first boot. This is what
+  makes a chosen resolution and scale stick.
 
-Don't pin `--display` above the window size — anything larger is cropped, not
-scaled to fit. (Tart's HiDPI units apply to macOS guests only; the Linux
-scanout is raw pixels, a Virtualisation.framework limitation.) Resources and the
-default mode come from `TART_DISPLAY` (1920×1200), `TART_CPU` (4), and
-`TART_MEM` (4096 MiB).
+The scale can't be handed to Tart (its HiDPI units are macOS-guest only; the
+Linux scanout is raw pixels, a Virtualisation.framework limitation), so
+first-boot provisioning applies it by writing GNOME's `~/.config/monitors.xml`.
+That file must name the exact mode including refresh rate, which is why it only
+works with refit off (a stable, known mode); `image/provision.sh` reads the
+live mode timing from DRM and computes the rate.
+
+Resources (cpu, memory, display, scale, refit) come from the VM's saved profile,
+set with `bluefin-vm setup`; the built-in defaults are 4 vCPUs, 4096 MiB, a
+1920×1200 display, and refit on.
 
 ## The shared folder
 

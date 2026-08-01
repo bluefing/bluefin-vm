@@ -37,8 +37,12 @@ Relevant context is `core::provision`, driven by `up` or `bluefin-vm provision`:
 | `username` | the account name |
 | `authorized_keys` | your ssh public key(s) |
 | `autologin` | present = enable autologin |
+| `scale` | guest desktop scale percentage; absent = leave GNOME's default |
 
 **Only** *public* material crosses the share — never a password or private key.
+The `scale` file is only written when the profile has refit off (a fixed
+resolution to pin the scale to); see the display-density notes in
+`docs/modules/tart.md`.
 
 ### Guest
 
@@ -49,11 +53,16 @@ boot, when the host has left that directory in the share (detected by its
 1. `useradd` the user in `wheel` (skipped if it already exists);
 2. install `authorized_keys` → `~/.ssh` (700 dir, 600 file, owned by the user,
    SELinux-relabelled `ssh_home_t`[^selinux] — sshd ignores a mislabelled key);
-3. add a `/etc/sudoers.d/bluefin-vm-<user>` drop-in[^sudo] granting that user
-   `NOPASSWD`;
-4. if autologin is requested, enable it (GDM `custom.conf`, edited with
-   `configparser`[^gdm] so shipped settings survive) and disable the idle screen
-   lock[^lock] (a password-less account can't clear it);
+3. branch on autologin:
+   - **autologin on** — add a `/etc/sudoers.d/bluefin-vm-<user>` drop-in[^sudo]
+     granting `NOPASSWD`, enable GDM autologin (`custom.conf`, edited with
+     `configparser`[^gdm] so shipped settings survive), and disable the idle
+     screen lock[^lock] (a password-less account can't clear it);
+   - **autologin off** — set the password to the username (`chpasswd`), leaving
+     the greeter and a normal `sudo` prompt usable; no passwordless-sudo rule;
+4. if a `scale` is set, write `~/.config/monitors.xml` at that scale for the
+   live display mode (read from DRM, refresh rate included, so mutter honours
+   it);
 5. delete `…/.bluefin-vm/`[^hygiene] — nothing sensitive lingers in the share.
 
 The unit is **gated** on that `username` file
@@ -81,12 +90,20 @@ simply follows from them:
   trap the desktop until reboot; the autologin case therefore **disables the
   idle lock**.
 
-So "no password" is not one choice among many — it *forces* autologin,
-passwordless sudo, and a lock-free desktop. The only alternative (a password,
-hence a greeter and normal sudo) means a secret through the share, which the
-rule forbids. (A first-boot *setup* — the user creating their own account
-interactively — is the other way to avoid a shared secret, but it's a greeter by
-another name, ruled out by the decided no-greeter goal.)
+So with autologin **on**, "no password" isn't one choice among many — it
+*forces* passwordless sudo and a lock-free desktop, because a password-less
+account can't sudo or unlock otherwise.
+
+Autologin **off** takes the other branch without breaking the rule: the password
+is set to the **username**, which is *already* in the share, so nothing secret
+crosses it — it's a public convention (like the baked `bluefin`/`bluefin`
+login), not a stored secret. This isn't about keeping an attacker out (they gain
+nothing over a passwordless sudoer); it's for people who want a real `sudo`
+prompt as a guard against a fat-fingered or pasted command running as root
+unasked. It brings back a usable greeter, a normal (password) sudo, and a
+working lock screen. For a *chosen* password (not `username`), that's what
+`bluefin-vm-harden` is for — set interactively in the guest, never through the
+share.
 
 This is the **disposable-dev-VM posture**: the VM is throwaway and holds no
 durable secrets — those live host-side in the share, behind macOS's own auth.
@@ -99,6 +116,13 @@ What you give up: passwordless root *inside* the VM, and a desktop that is
 unlocked on boot and never idle-locks. Fine for a personal VM behind macOS; not
 what you'd want on a shared or exposed host.
 
+One sharp edge specific to autologin: **don't Log Out.** A password-less account
+can't authenticate at the greeter, so an explicit log-out drops you at a login
+screen it can't get past — you have to **reboot** to autologin again (or ssh in
+with your key). Disabling the idle lock avoids the *accidental* version of this;
+a deliberate log-out still strands the session. (Autologin off doesn't have this
+problem — that account has a password, so the greeter works.)
+
 For the stricter posture, run **`bluefin-vm-harden`** — a helper baked into the
 guest image (on `PATH`); run it in the VM, over ssh or a terminal, and it
 self-elevates with sudo. It sets a password and removes the sudoers drop-in,
@@ -106,8 +130,10 @@ after which sudo, the greeter, and the lock screen all work normally.
 
 To opt out up front, `bluefin-vm up` takes two flags (`up --help`):
 
-- `--no-autologin` leaves the greeter — which a password-less account *can't*
-  use, so it's for ssh-first use or once you've hardened.
+- `--no-autologin` leaves the greeter and sets the account's password to its
+  username, so you log in there normally and `sudo` prompts for a password
+  (no passwordless-sudo rule) — for those who'd rather not run with autologin
+  and passwordless root.
 - `--no-provision` skips provisioning and boots the stock baked `bluefin` login
   untouched.
 

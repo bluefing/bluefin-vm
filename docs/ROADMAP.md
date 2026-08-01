@@ -40,11 +40,14 @@ hand.
   ~11 MiB, too fragile as the image grows).
 - **Upstreaming:** the repo moves into `ublue-os` when ready (Jorge offered;
   user-paced — prove on the personal repo first).
-- **First run: no greeter, provisioned to the user.** The host writes the
-  account (username + ssh public key) into the share pre-boot; a guest oneshot
-  creates it on first boot and the VM autologs in. Pubkey-only, no password —
-  hence autologin (desktop) plus a scoped passwordless-sudo rule (admin), the
-  disposable-dev-VM posture. No provision data → the baked test login.
+- **First run: provisioned to the user.** The host writes the account (username
+  + ssh public key) into the share pre-boot; a guest oneshot creates it on first
+  boot. The default is autologin + pubkey-only, no password — hence a scoped
+  passwordless-sudo rule (admin), the disposable-dev-VM posture. Turning
+  autologin off instead sets password == username (a public convention, no
+  secret in the share), giving a normal greeter login and password sudo; whether
+  *that* should be the default is an open question (below). No provision data →
+  the baked test login.
 
 ## Non-goals
 
@@ -82,3 +85,21 @@ hand.
    formula downloads; the ad-hoc signature suffices to execute) — confirmed on
    the brew-installed tool.
 6. **Disk sizing:** is a 20 GiB root the right default? User-resizable?
+7. **Default credential posture — decision pending (surfaced 2026-08-01).** The
+   default is autologin + password-less. Testing showed that posture carries
+   three papercuts, all rooted in autologin bypassing the password entry GDM/pam
+   would otherwise use:
+   - **Keyring:** the first secret-storing app pops a "create keyring" dialog,
+     then you must pick *unencrypted + silent* (blank password) or *encrypted +
+     an unlock prompt every boot*. Autologin can't give encrypted-and-silent.
+   - **polkit:** GUI privilege prompts are unusable with no password (BL-15).
+   - **Logout:** logging out strands you at the greeter — reboot to recover.
+
+   The autologin-**off** posture (implemented: password == username, a public
+   convention, so no secret crosses the share) clears all three at once — the
+   login keyring is encrypted *and* auto-unlocked by pam, polkit works, the
+   greeter works — for the cost of one login at boot. Both are wired to the
+   `setup` Autologin toggle; the open question is which is the **default**.
+   Leaning greeter+password for a VM whose desktop you actually use, with
+   autologin as the opt-in "don't make me type it" mode plus documented caveats
+   — but zero-friction boot is a real draw for throwaway use.
