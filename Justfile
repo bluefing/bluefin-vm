@@ -13,6 +13,10 @@ mod tart '.just/tart'
 [group('image-build')]
 mod build '.just/build'
 
+# Build and serve the documentation site (Zensical)
+[group('docs')]
+mod docs '.just/docs'
+
 # First-time setup after cloning: install the git hooks (pre-commit, commit-msg,
 # pre-push). Needs pre-commit itself (brew install pre-commit).
 [doc('Install the git hooks -- run once after cloning')]
