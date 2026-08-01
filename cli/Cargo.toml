@@ -15,6 +15,10 @@ clap = { version = "4", features = ["derive"] }
 ureq = "3"
 sha2 = "0.11"
 indicatif = "0.18"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
 # Seed is a zip64 archive (the disk entry is >4 GiB) compressed with deflate;
 # no other codec/crypto features needed, so keep the default set out.
 zip = { version = "2", default-features = false, features = ["deflate"] }
+# crossterm backend only -- drop the default termwiz/wezterm backend bloat.
+ratatui = { version = "0.30.2", default-features = false, features = ["crossterm"] }

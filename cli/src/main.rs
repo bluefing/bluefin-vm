@@ -6,6 +6,7 @@
 //! subcommands expose the individual steps for debugging.
 
 mod core;
+mod tui;
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -97,11 +98,20 @@ enum Command {
     },
     /// Write first-boot provisioning into the share (usually done by `up`).
     Provision {
+        /// Tart VM name -- keys the saved profile.
+        #[arg(long, default_value = DEFAULT_VM_NAME)]
+        name: String,
         #[command(flatten)]
         provision: ProvisionArgs,
         /// Host folder shared into the VM (durable tier).
         #[arg(long)]
         share: Option<PathBuf>,
+    },
+    /// Interactively edit a VM's saved profile (account, share, resources).
+    Setup {
+        /// Tart VM name -- the profile to edit.
+        #[arg(long, default_value = DEFAULT_VM_NAME)]
+        name: String,
     },
 }
 
@@ -125,32 +135,54 @@ fn main() -> Result<()> {
             no_provision,
         ),
         Command::Download { out, url, sha256 } => {
+            let out = core::config::expand_tilde(out);
             let outcome = download(&url, &out, sha256.as_deref())?;
             report_download(&outcome, &out);
             Ok(())
         }
         Command::Extract { zip, out_dir } => {
-            let disk = extract(&zip, &out_dir)?;
-            eprintln!("Extracted {}", disk.display());
+            let zip = core::config::expand_tilde(zip);
+            let out_dir = core::config::expand_tilde(out_dir);
+            let (disk, outcome) = extract(&zip, &out_dir)?;
+            report_extract(&outcome, &disk);
             Ok(())
         }
         Command::Import { disk, name } => {
+            let disk = core::config::expand_tilde(disk);
             eprintln!("Importing {} into Tart VM '{name}'…", disk.display());
-            core::tart::import(&disk, &core::tart::VmSpec::new(name))?;
+            let config = core::config::Config::load()?;
+            let spec =
+                core::tart::VmSpec::resolve(&name, config.profile(&name).map(|p| &p.resources));
+            core::tart::import(&disk, &spec)?;
             eprintln!("Imported.");
             Ok(())
         }
-        Command::Provision { provision, share } => {
-            let share = share.unwrap_or_else(default_share);
-            let prov = provision.resolve()?;
+        Command::Provision {
+            name,
+            provision,
+            share,
+        } => {
+            let mut config = core::config::Config::load()?;
+            let share = core::config::expand_tilde(
+                share
+                    .or_else(|| {
+                        config
+                            .profile(&name)
+                            .and_then(|p| p.share.directory.clone())
+                    })
+                    .unwrap_or_else(default_share),
+            );
+            let prov = resolve_account(&mut config, &name, provision)?;
             core::provision::write(&share, &prov)?;
+            config.save()?;
             eprintln!(
-                "Wrote provisioning for '{}' to {}",
+                "Wrote provisioning for '{}' to {} (saved to config)",
                 prov.username,
                 share.join(".bluefin-vm").display()
             );
             Ok(())
         }
+        Command::Setup { name } => tui::run(&name),
     }
 }
 
@@ -166,8 +198,7 @@ fn up(
     provision: ProvisionArgs,
     no_provision: bool,
 ) -> Result<()> {
-    let work_dir = work_dir.unwrap_or_else(default_work_dir);
-    let share = share.unwrap_or_else(default_share);
+    let work_dir = core::config::expand_tilde(work_dir.unwrap_or_else(default_work_dir));
     std::fs::create_dir_all(&work_dir)
         .with_context(|| format!("creating work dir {}", work_dir.display()))?;
 
@@ -175,23 +206,43 @@ fn up(
     let outcome = download(url, &seed, expected)?;
     report_download(&outcome, &seed);
 
-    let disk = extract(&seed, &work_dir)?;
+    let (disk, extract_outcome) = extract(&seed, &work_dir)?;
+    report_extract(&extract_outcome, &disk);
+
+    let mut config = core::config::Config::load()?;
+
+    // Share precedence mirrors resources: --share flag > profile > default.
+    // Read-only is profile-only (no flag yet).
+    let read_only = config
+        .profile(name)
+        .and_then(|p| p.share.read_only)
+        .unwrap_or(false);
+    let share = core::config::expand_tilde(
+        share
+            .or_else(|| config.profile(name).and_then(|p| p.share.directory.clone()))
+            .unwrap_or_else(default_share),
+    );
 
     eprintln!("Importing into Tart VM '{name}'…");
-    core::tart::import(&disk, &core::tart::VmSpec::new(name))?;
+    let spec = core::tart::VmSpec::resolve(name, config.profile(name).map(|p| &p.resources));
+    core::tart::import(&disk, &spec)?;
 
     // Provision before boot: the guest oneshot reads the share on first boot.
     let provisioned = if no_provision {
         None
     } else {
-        let prov = provision.resolve()?;
-        eprintln!("Provisioning first-boot account '{}'…", prov.username);
+        let prov = resolve_account(&mut config, name, provision)?;
         core::provision::write(&share, &prov)?;
+        config.save()?;
+        eprintln!(
+            "Provisioned first-boot account '{}' (saved to config).",
+            prov.username
+        );
         Some(prov.username)
     };
 
     let log = std::env::temp_dir().join(format!("tart-{name}.log"));
-    core::tart::run_detached(name, &share, &log, Duration::from_secs(3))?;
+    core::tart::run_detached(name, &share, read_only, &log, Duration::from_secs(3))?;
     eprintln!(
         "VM '{name}' running detached (window open). Log: {}",
         log.display()
@@ -203,7 +254,11 @@ fn up(
         }
         None => eprintln!("No provisioning — the baked test login (bluefin/bluefin) applies."),
     }
-    eprintln!("Share: {}", share.display());
+    eprintln!(
+        "Share: {}{}",
+        share.display(),
+        if read_only { " (read-only)" } else { "" }
+    );
     eprintln!("Stop it:  tart stop {name}");
     Ok(())
 }
@@ -229,17 +284,26 @@ fn download(url: &str, out: &Path, expected: Option<&str>) -> Result<core::downl
     Ok(outcome)
 }
 
-fn extract(zip: &Path, out_dir: &Path) -> Result<PathBuf> {
+fn extract(zip: &Path, out_dir: &Path) -> Result<(PathBuf, core::extract::Outcome)> {
     eprintln!("Extracting disk from {}", zip.display());
     let bar = bytes_bar();
-    let disk = core::extract::extract_disk(zip, out_dir, |done, total| {
+    let (disk, outcome) = core::extract::extract_disk(zip, out_dir, |done, total| {
         if total > 0 && bar.length() != Some(total) {
             bar.set_length(total);
         }
         bar.set_position(done);
     })?;
     bar.finish();
-    Ok(disk)
+    Ok((disk, outcome))
+}
+
+fn report_extract(outcome: &core::extract::Outcome, path: &Path) {
+    match outcome {
+        core::extract::Outcome::AlreadyExtracted => {
+            eprintln!("Already extracted: {}", path.display())
+        }
+        core::extract::Outcome::Extracted => eprintln!("Extracted to {}", path.display()),
+    }
 }
 
 // --- helpers ----------------------------------------------------------------
@@ -308,28 +372,79 @@ fn default_ssh_key() -> Option<PathBuf> {
 }
 
 impl ProvisionArgs {
-    /// Resolve the flags (with host defaults) into what the guest needs.
-    fn resolve(self) -> Result<core::provision::Provision> {
-        let username = self
+    /// Resolve flags, the VM's saved profile, and host defaults into an account
+    /// -- precedence flag > profile > default. Returns the persistable form
+    /// (an ssh key *path*, not its contents); `provision_from` materialises it.
+    fn resolve(self, saved: Option<&core::config::Account>) -> Result<core::config::Account> {
+        let user = self
             .user
+            .or_else(|| saved.and_then(|a| a.user.clone()))
             .or_else(default_username)
             .context("no --user given and $USER is unset")?;
-        let authorized_keys = match self.ssh_key.or_else(default_ssh_key) {
-            Some(p) => std::fs::read_to_string(&p)
-                .with_context(|| format!("reading ssh key {}", p.display()))?,
-            None => {
-                eprintln!(
-                    "Warning: no ssh public key found (~/.ssh/*.pub); pass --ssh-key to set one"
-                );
-                String::new()
-            }
+        let ssh_key = self
+            .ssh_key
+            .map(core::config::expand_tilde)
+            .map(core::config::SshKey::Path)
+            .or_else(|| saved.and_then(|a| a.ssh_key.clone()))
+            .or_else(|| default_ssh_key().map(core::config::SshKey::Path));
+        // --no-autologin only ever disables; otherwise fall to the profile, then on.
+        let autologin = if self.no_autologin {
+            false
+        } else {
+            saved.and_then(|a| a.autologin).unwrap_or(true)
         };
-        Ok(core::provision::Provision {
-            username,
-            authorized_keys,
-            autologin: !self.no_autologin,
+        Ok(core::config::Account {
+            user: Some(user),
+            ssh_key,
+            autologin: Some(autologin),
         })
     }
+}
+
+/// Turn a resolved account into first-boot provisioning data, reading the ssh
+/// key file into `authorized_keys`.
+fn provision_from(
+    account: &core::config::Account,
+    scale: Option<u32>,
+) -> Result<core::provision::Provision> {
+    let username = account
+        .user
+        .clone()
+        .context("resolved account has no username")?;
+    let authorized_keys = match &account.ssh_key {
+        Some(core::config::SshKey::Path(p)) => std::fs::read_to_string(p)
+            .with_context(|| format!("reading ssh key {}", p.display()))?,
+        Some(core::config::SshKey::Disabled) => String::new(),
+        None => {
+            eprintln!("Warning: no ssh public key found (~/.ssh/*.pub); pass --ssh-key to set one");
+            String::new()
+        }
+    };
+    Ok(core::provision::Provision {
+        username,
+        authorized_keys,
+        autologin: account.autologin.unwrap_or(true),
+        scale,
+    })
+}
+
+/// Resolve the account for `name` (flag > profile > default) and store it back
+/// into `config`, returning the provisioning data. The caller writes it to the
+/// share and persists `config`. Scale has no CLI flag -- it's profile-only,
+/// set via `bluefin-vm setup`.
+fn resolve_account(
+    config: &mut core::config::Config,
+    name: &str,
+    args: ProvisionArgs,
+) -> Result<core::provision::Provision> {
+    let scale = config.profile(name).and_then(|p| p.resources.scale);
+    let account = args.resolve(config.profile(name).map(|p| &p.account))?;
+    let prov = provision_from(&account, scale)?;
+    // Merge into any existing profile so other categories (resources) survive.
+    let mut profile = config.profile(name).cloned().unwrap_or_default();
+    profile.account = account;
+    config.set_profile(name, profile);
+    Ok(prov)
 }
 
 #[cfg(test)]

@@ -2,11 +2,12 @@
 //!
 //! This shells out to the `tart` CLI (the brew formula depends on it). The argv
 //! builders are kept separate from execution so they can be unit-tested without
-//! tart installed — the same split `create-vm.sh` gets from its `-n` dry run.
+//! tart installed.
 //!
-//! Ports `bin/create-vm.sh`: validate the disk is a raw GPT image, recreate the
-//! VM, clone the disk in, then set resources. Unlike the script it does not
-//! convert qcow2 — the tool only ever imports the raw it extracts from a seed.
+//! The single import path: validate the disk is a raw GPT image, recreate the
+//! VM, clone the disk in, then set resources. Raw only — the `just build`
+//! recipes produce raw and the tool imports the raw it extracts from a seed, so
+//! there is no qcow2 conversion here.
 
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
@@ -15,31 +16,33 @@ use std::process::{Command, Stdio};
 
 use anyhow::{bail, Context, Result};
 
-/// VM resources. Defaults and env overrides mirror `create-vm.sh`.
+/// VM resources handed to Tart.
 pub struct VmSpec {
     pub name: String,
     pub cpu: u32,
     pub memory_mib: u32,
     pub display: String,
+    /// Whether to pass `--display-refit` (guest resolution follows the window).
+    /// Off means a fixed `display`, which is what lets a chosen resolution and
+    /// guest scale hold.
+    pub refit: bool,
 }
 
 impl VmSpec {
-    /// Build a spec for `name`, reading TART_CPU / TART_MEM / TART_DISPLAY.
-    pub fn new(name: impl Into<String>) -> Self {
+    /// Resolve a spec for `name`, precedence saved profile > built-in default.
+    /// The profile (set via `bluefin-vm setup`) is the only source; there is no
+    /// env override, so what the config says is what Tart gets.
+    pub fn resolve(name: impl Into<String>, saved: Option<&super::config::Resources>) -> Self {
         Self {
             name: name.into(),
-            cpu: env_u32("TART_CPU", 4),
-            memory_mib: env_u32("TART_MEM", 4096),
-            display: std::env::var("TART_DISPLAY").unwrap_or_else(|_| "1920x1200".into()),
+            cpu: saved.and_then(|r| r.cpu).unwrap_or(4),
+            memory_mib: saved.and_then(|r| r.memory_mib).unwrap_or(4096),
+            display: saved
+                .and_then(|r| r.display.clone())
+                .unwrap_or_else(|| "1920x1200".into()),
+            refit: saved.and_then(|r| r.refit).unwrap_or(true),
         }
     }
-}
-
-fn env_u32(key: &str, default: u32) -> u32 {
-    std::env::var(key)
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(default)
 }
 
 // --- argv builders (pure; unit-tested) --------------------------------------
@@ -49,28 +52,34 @@ fn create_args(name: &str) -> Vec<String> {
 }
 
 fn set_args(spec: &VmSpec) -> Vec<String> {
-    vec![
+    let mut args = vec![
         "set".into(),
         spec.name.clone(),
         "--cpu".into(),
         spec.cpu.to_string(),
         "--memory".into(),
         spec.memory_mib.to_string(),
-        // 16:10 default; --display-refit lets the guest resolution follow window
-        // resizes/fullscreen (GNOME + virtio-gpu honours it).
         "--display".into(),
         spec.display.clone(),
-        "--display-refit".into(),
-    ]
+    ];
+    // With refit on, Tart resizes the guest to follow the window; with it off,
+    // the display stays fixed, which is what makes a chosen resolution and
+    // guest scale (monitors.xml) hold.
+    if spec.refit {
+        args.push("--display-refit".into());
+    }
+    args
 }
 
 /// Args for `tart run`, sharing the durable host folder as `bluefin-share`.
-/// `graphics=false` adds `--no-graphics` for a headless run.
-pub fn run_args(name: &str, share: &Path, graphics: bool) -> Vec<String> {
+/// `read_only` appends Tart's `:ro` so the guest can't write back; `graphics=false`
+/// adds `--no-graphics` for a headless run.
+pub fn run_args(name: &str, share: &Path, read_only: bool, graphics: bool) -> Vec<String> {
+    let ro = if read_only { ":ro" } else { "" };
     let mut a = vec![
         "run".into(),
         name.into(),
-        format!("--dir=bluefin-share:{}", share.display()),
+        format!("--dir=bluefin-share:{}{ro}", share.display()),
     ];
     if !graphics {
         a.push("--no-graphics".into());
@@ -96,8 +105,8 @@ fn vm_disk_path(name: &str) -> PathBuf {
 // --- disk validation --------------------------------------------------------
 
 /// Reject anything that isn't a raw GPT disk before we destroy the old VM — a
-/// bad input must never cost a working VM. Mirrors create-vm.sh's magic-byte
-/// checks (qcow2 header at 0, GPT signature at LBA 1 = byte 512).
+/// bad input must never cost a working VM. Checks the magic bytes: a qcow2
+/// header at 0, and the GPT signature at LBA 1 (byte 512).
 fn ensure_raw_disk(path: &Path) -> Result<()> {
     let mut f = File::open(path).with_context(|| format!("opening {}", path.display()))?;
 
@@ -182,6 +191,7 @@ pub fn import(raw: &Path, spec: &VmSpec) -> Result<()> {
 pub fn run_detached(
     name: &str,
     share: &Path,
+    read_only: bool,
     log: &Path,
     settle: std::time::Duration,
 ) -> Result<PathBuf> {
@@ -191,7 +201,7 @@ pub fn run_detached(
     let err = out.try_clone().context("cloning log handle")?;
 
     let mut child = Command::new("tart")
-        .args(run_args(name, share, true))
+        .args(run_args(name, share, read_only, true))
         .stdout(Stdio::from(out))
         .stderr(Stdio::from(err))
         .spawn()
@@ -212,6 +222,32 @@ mod tests {
     use super::*;
 
     #[test]
+    fn resolve_prefers_profile_then_default() {
+        // No profile -> built-in defaults.
+        let d = VmSpec::resolve("v", None);
+        assert_eq!(
+            (d.cpu, d.memory_mib, d.display.as_str()),
+            (4, 4096, "1920x1200")
+        );
+
+        // The profile fills what it sets; unset fields fall to the defaults.
+        let res = crate::core::config::Resources {
+            cpu: Some(8),
+            memory_mib: None,
+            display: Some("2560x1600".into()),
+            scale: None,
+            refit: None,
+        };
+        let p = VmSpec::resolve("v", Some(&res));
+        assert_eq!(
+            (p.cpu, p.memory_mib, p.display.as_str()),
+            (8, 4096, "2560x1600")
+        );
+        assert!(p.refit); // unset -> refit on (the default)
+        assert!(VmSpec::resolve("v", None).refit);
+    }
+
+    #[test]
     fn create_args_are_minimal() {
         assert_eq!(create_args("Bluefin"), ["create", "--linux", "Bluefin"]);
     }
@@ -223,6 +259,7 @@ mod tests {
             cpu: 6,
             memory_mib: 8192,
             display: "2560x1600".into(),
+            refit: true,
         };
         assert_eq!(
             set_args(&spec),
@@ -241,19 +278,38 @@ mod tests {
     }
 
     #[test]
+    fn set_args_omit_refit_when_off() {
+        let spec = VmSpec {
+            name: "Bluefin".into(),
+            cpu: 6,
+            memory_mib: 8192,
+            display: "2560x1600".into(),
+            refit: false,
+        };
+        // A fixed display and no --display-refit -- what lets the resolution hold.
+        assert!(!set_args(&spec).contains(&"--display-refit".to_string()));
+        assert!(set_args(&spec).contains(&"2560x1600".to_string()));
+    }
+
+    #[test]
     fn run_args_attach_the_share_and_toggle_graphics() {
         let share = Path::new("/Users/x/bluefin-share");
         assert_eq!(
-            run_args("Bluefin", share, true),
+            run_args("Bluefin", share, false, true),
             [
                 "run",
                 "Bluefin",
                 "--dir=bluefin-share:/Users/x/bluefin-share",
             ]
         );
+        // Read-only appends Tart's :ro suffix.
+        assert_eq!(
+            run_args("Bluefin", share, true, true)[2],
+            "--dir=bluefin-share:/Users/x/bluefin-share:ro"
+        );
         // Headless adds --no-graphics.
         assert_eq!(
-            run_args("Bluefin", share, false).last().unwrap(),
+            run_args("Bluefin", share, false, false).last().unwrap(),
             "--no-graphics"
         );
     }

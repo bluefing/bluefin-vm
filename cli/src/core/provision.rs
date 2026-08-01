@@ -18,6 +18,9 @@ pub struct Provision {
     /// One or more ssh public keys (the authorized_keys file's contents).
     pub authorized_keys: String,
     pub autologin: bool,
+    /// Guest desktop scale percentage (100 or 200); `None` leaves GNOME's
+    /// own default alone.
+    pub scale: Option<u32>,
 }
 
 /// A valid Linux account name, matching the guest script's own check: lowercase
@@ -56,6 +59,16 @@ pub fn write(share: &Path, p: &Provision) -> Result<()> {
     } else {
         let _ = fs::remove_file(&autologin);
     }
+
+    // Same pattern as autologin: presence (and content) is the value, cleared
+    // when unset so a stale scale from an earlier provision doesn't linger.
+    let scale = dir.join("scale");
+    match p.scale {
+        Some(pct) => fs::write(&scale, format!("{pct}\n")).context("writing scale")?,
+        None => {
+            let _ = fs::remove_file(&scale);
+        }
+    }
     Ok(())
 }
 
@@ -83,6 +96,7 @@ mod tests {
                 username: "alice".into(),
                 authorized_keys: "ssh-ed25519 AAAAKEY alice@mac\n".into(),
                 autologin: true,
+                scale: Some(200),
             },
         )
         .unwrap();
@@ -93,6 +107,7 @@ mod tests {
             "ssh-ed25519 AAAAKEY alice@mac\n"
         );
         assert!(dir.join("autologin").exists());
+        assert_eq!(fs::read_to_string(dir.join("scale")).unwrap(), "200\n");
         let _ = fs::remove_dir_all(&share);
     }
 
@@ -110,11 +125,35 @@ mod tests {
                 username: "bob".into(),
                 authorized_keys: String::new(),
                 autologin: false,
+                scale: None,
             },
         )
         .unwrap();
         // ...is removed when autologin is off.
         assert!(!flag.exists());
+        let _ = fs::remove_dir_all(&share);
+    }
+
+    #[test]
+    fn unset_scale_clears_a_stale_file() {
+        let share = std::env::temp_dir().join("bluefin-vm-provision-scale-off");
+        let _ = fs::remove_dir_all(&share);
+        let scale = share.join(DIR).join("scale");
+        // Pre-existing scale from an earlier provision...
+        fs::create_dir_all(share.join(DIR)).unwrap();
+        fs::write(&scale, "200\n").unwrap();
+        write(
+            &share,
+            &Provision {
+                username: "bob".into(),
+                authorized_keys: String::new(),
+                autologin: false,
+                scale: None,
+            },
+        )
+        .unwrap();
+        // ...is removed once the profile no longer sets a scale.
+        assert!(!scale.exists());
         let _ = fs::remove_dir_all(&share);
     }
 
@@ -128,6 +167,7 @@ mod tests {
                 username: "Root!".into(),
                 authorized_keys: String::new(),
                 autologin: true,
+                scale: None,
             },
         );
         assert!(r.is_err());

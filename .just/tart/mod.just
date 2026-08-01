@@ -49,7 +49,7 @@ up name=default_name image=default_image:
     ./bin/build-disk.sh -f raw -i "{{image}}"
   fi
   if [ ! -f "$vmdisk" ] || [ "$disk" -nt "$vmdisk" ]; then
-    ./bin/create-vm.sh -d "$disk" -N "{{name}}"
+    cargo run --manifest-path cli/Cargo.toml --release -- import --disk "$disk" --name "{{name}}"
   else
     echo ">> Tart VM '{{name}}' already has this disk"
   fi
@@ -141,11 +141,13 @@ start-headless name=default_name:
 
 # --- plumbing: called by the verbs above, or rarely by hand -----------------
 
-# Import the built raw disk (output/image/disk.raw) into a Tart VM
+# Import the built raw disk (output/image/disk.raw) into a Tart VM via the
+# bluefin-vm CLI -- the single import implementation (validation, VM replace,
+# resource set all live in cli/src/core/tart.rs).
 [no-cd]
 [group('plumbing')]
 import name=default_name:
-  ./bin/create-vm.sh -d output/image/disk.raw -N "{{name}}"
+  cargo run --manifest-path cli/Cargo.toml --release -- import --disk output/image/disk.raw --name "{{name}}"
 
 # Push a Tart VM to an OCI registry (override ref for your org)
 [group('plumbing')]

@@ -5,6 +5,11 @@ _default:
 set shell := ["bash", "-euc"]
 set script-interpreter := ["bash", "-euo", "pipefail"]
 
+# rustup installs cargo under ~/.cargo/bin, which just's non-interactive recipe
+# shells and the pre-commit hook don't inherit from the login profile. Put it
+# on PATH so `cargo` is always found in any module that drives the crate.
+export PATH := env('HOME') / '.cargo/bin' + ':' + env('PATH')
+
 [private, script, no-exit-message]
 _help file="help.md" width="90":
     # Render a module help file with glow, bat, or cat (first available).

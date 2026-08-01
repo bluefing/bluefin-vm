@@ -40,7 +40,7 @@ setup() {
 @test "just tart up wires build raw -> import -> start, each step guarded" {
   run just --dry-run tart up
   [[ "$output" == *"-f raw"* ]]
-  [[ "$output" == *"bin/create-vm.sh"* ]]
+  [[ "$output" == *"import --disk"* ]]
   [[ "$output" == *"tart run"* ]]
   # Incremental: build only if the disk is absent, re-import only if newer.
   [[ "$output" == *'if [ -f "$disk" ]'* ]]
@@ -58,7 +58,7 @@ setup() {
 
 @test "just tart import passes the canonical raw disk (never auto-detect)" {
   run just --dry-run tart import
-  [[ "$output" == *"bin/create-vm.sh -d output/image/disk.raw"* ]]
+  [[ "$output" == *"import --disk output/image/disk.raw"* ]]
 }
 
 @test "just tart ssh targets the VM's IP as your host account by default" {
@@ -95,7 +95,7 @@ setup() {
   run just --dry-run tart up-patched
   [[ "$output" == *"bin/build-image.sh"* ]]
   [[ "$output" == *'-i "localhost/bluefin-vm-patched'* ]]
-  [[ "$output" == *"bin/create-vm.sh"* ]]
+  [[ "$output" == *"import --disk"* ]]
 }
 
 @test "just tart up-provisioned stages provisioning before the patched up chain" {
@@ -104,7 +104,7 @@ setup() {
   [[ "$output" == *"cargo run -- provision"* ]]
   # ...then the same container -> disk -> import -> boot chain as up-patched.
   [[ "$output" == *"bin/build-image.sh"* ]]
-  [[ "$output" == *"bin/create-vm.sh"* ]]
+  [[ "$output" == *"import --disk"* ]]
   [[ "$output" == *"tart run"* ]]
 }
 

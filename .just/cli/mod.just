@@ -1,11 +1,6 @@
 import '../_config.just'
 import '../_common.just'
 
-# rustup installs cargo under ~/.cargo/bin, which just's non-interactive recipe
-# shells and the pre-commit hook don't inherit from the login profile. Put it
-# on PATH so `cargo` is always found, whoever invokes the recipe.
-export PATH := env('HOME') / '.cargo/bin' + ':' + env('PATH')
-
 # The `bluefin-vm` tool: downloads a disk, imports it into Tart, and runs it.
 # Recipes wrap cargo so the crate is driven the same way as the rest of the
 # repo. [no-cd] keeps them running from the repo root, then they cd into cli/.

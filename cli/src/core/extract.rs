@@ -18,8 +18,21 @@ const CHUNK: usize = 64 * 1024;
 /// (alongside `manifest-raw.json`).
 const DISK_ENTRY: &str = "image/disk.raw";
 
+/// What an `extract_disk` call actually did, so the caller can report it.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Outcome {
+    /// Inflated fresh (no prior disk, or it didn't match the entry's size).
+    Extracted,
+    /// A `disk.raw` of the entry's exact size was already there; nothing to do.
+    AlreadyExtracted,
+}
+
 /// Extract the raw disk from `zip_path` into `dest_dir`, returning the written
 /// path (`dest_dir/disk.raw`).
+///
+/// Skips the inflate if `dest_dir/disk.raw` already has the entry's exact
+/// uncompressed size -- a prior extract of this seed -- rather than
+/// rewriting the same 20+ GiB on every `up`.
 ///
 /// `progress(written, total)` is called as bytes are inflated; `total` is the
 /// entry's uncompressed size.
@@ -27,7 +40,7 @@ pub fn extract_disk(
     zip_path: &Path,
     dest_dir: &Path,
     mut progress: impl FnMut(u64, u64),
-) -> Result<PathBuf> {
+) -> Result<(PathBuf, Outcome)> {
     let file = File::open(zip_path).with_context(|| format!("opening {}", zip_path.display()))?;
     let mut archive =
         ZipArchive::new(file).with_context(|| format!("reading zip {}", zip_path.display()))?;
@@ -39,6 +52,12 @@ pub fn extract_disk(
     std::fs::create_dir_all(dest_dir)
         .with_context(|| format!("creating {}", dest_dir.display()))?;
     let dest = dest_dir.join("disk.raw");
+
+    if std::fs::metadata(&dest).is_ok_and(|m| m.len() == total) {
+        progress(total, total);
+        return Ok((dest, Outcome::AlreadyExtracted));
+    }
+
     let mut out = File::create(&dest).with_context(|| format!("creating {}", dest.display()))?;
 
     let mut written = 0u64;
@@ -52,7 +71,7 @@ pub fn extract_disk(
         written += n as u64;
         progress(written, total);
     }
-    Ok(dest)
+    Ok((dest, Outcome::Extracted))
 }
 
 #[cfg(test)]
@@ -84,12 +103,36 @@ mod tests {
         write_seed(&zip, &disk);
 
         let mut last = (0u64, 0u64);
-        let out = extract_disk(&zip, &dir, |w, t| last = (w, t)).unwrap();
+        let (out, outcome) = extract_disk(&zip, &dir, |w, t| last = (w, t)).unwrap();
 
         assert_eq!(out, dir.join("disk.raw"));
+        assert_eq!(outcome, Outcome::Extracted);
         assert_eq!(std::fs::read(&out).unwrap(), disk);
         // Progress ran to completion against the real uncompressed size.
         assert_eq!(last, (disk.len() as u64, disk.len() as u64));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn already_extracted_is_a_noop() {
+        let dir = std::env::temp_dir().join("bluefin-vm-extract-already");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let zip = dir.join("seed.zip");
+        let disk: Vec<u8> = (0u8..=255).cycle().take(50_000).collect();
+        write_seed(&zip, &disk);
+
+        let (out, first) = extract_disk(&zip, &dir, |_, _| {}).unwrap();
+        assert_eq!(first, Outcome::Extracted);
+
+        // A second extract sees a disk.raw already at the entry's exact size
+        // and skips straight to reporting it done.
+        let mut last = (0u64, 0u64);
+        let (out2, second) = extract_disk(&zip, &dir, |w, t| last = (w, t)).unwrap();
+        assert_eq!(out2, out);
+        assert_eq!(second, Outcome::AlreadyExtracted);
+        assert_eq!(last, (disk.len() as u64, disk.len() as u64));
+        assert_eq!(std::fs::read(&out).unwrap(), disk);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
