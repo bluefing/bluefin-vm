@@ -1,0 +1,9 @@
+[project]
+name = "bluefin-vm-docs"
+version = "0.1.0"
+description = "Documentation site for bluefin-vm"
+requires-python = ">=3.11"
+dependencies = [
+    "zensical",
+    "uv>=0.5",
+]

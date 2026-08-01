@@ -60,20 +60,23 @@ Not built yet — where this is headed:
 
 ## Docs
 
+Documentation is a [Zensical](https://github.com/squidfunk/zensical) site under
+[`docs/`](docs/) — build it locally with `cd docs && uv run zensical serve`.
 Module docs double as `just <module> help` in the terminal:
 
-- **[Building](docs/modules/build.md)** — build the image and disk yourself:
+- **[Building](docs/content/just/build.md)** — build the image and disk yourself:
   which upstream image to use, and local and CI builds.
-- **[Running a VM](docs/modules/tart.md)** — the three ways up, ssh, display
+- **[Running a VM](docs/content/just/tart.md)** — the ways up, ssh, display
   density, the shared folder, and one-time guest setup for stock disks.
-- **[The tool](docs/modules/cli.md)** — what `bluefin-vm` does and how the
+- **[The tool](docs/content/just/cli.md)** — what `bluefin-vm` does and how the
   recipes drive it.
-- **[First-boot provisioning](docs/PROVISIONING.md)** — the account and
-  credential model (autologin, passwordless sudo, hardening).
-- **[Roadmap](docs/ROADMAP.md)** and **[Backlog](docs/BACKLOG.md)** — decisions,
-  open questions, and stories.
-- **[Orientation](docs/modules/root.md)** — a map of what lives where and how the
-  pieces relate.
+- **[First-boot provisioning](docs/content/guide/provisioning.md)** — the account
+  and credential model.
+- **[Orientation](docs/content/reference/repo-structure.md)** — a map of what
+  lives where and how the pieces relate.
+
+Design notes, decisions, and the backlog live in
+[`docs/internal/`](docs/internal/) (not part of the published site).
 
 ## License
 

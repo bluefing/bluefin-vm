@@ -1,1 +1,1 @@
-../../docs/modules/cli.md
+../../docs/content/just/cli.md

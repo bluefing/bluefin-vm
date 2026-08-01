@@ -1,1 +1,1 @@
-../../docs/modules/tart.md
+../../docs/content/just/tart.md

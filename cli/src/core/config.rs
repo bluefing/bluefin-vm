@@ -77,7 +77,7 @@ pub struct Share {
 
 /// Hardware sizing handed to Tart, plus the guest display scale. `scale` is
 /// the odd one out: Linux scanout is raw pixels (no `tart set` equivalent of
-/// macOS's HiDPI points -- see docs/modules/tart.md), so it isn't handed to
+/// macOS's HiDPI points -- see docs/content/just/tart.md), so it isn't handed to
 /// Tart at all. It's applied by first-boot provisioning instead, like the
 /// account fields.
 ///

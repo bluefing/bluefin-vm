@@ -1,1 +1,1 @@
-../../docs/modules/build.md
+../../docs/content/just/build.md

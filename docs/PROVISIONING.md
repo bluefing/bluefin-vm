@@ -42,7 +42,7 @@ Relevant context is `core::provision`, driven by `up` or `bluefin-vm provision`:
 **Only** *public* material crosses the share — never a password or private key.
 The `scale` file is only written when the profile has refit off (a fixed
 resolution to pin the scale to); see the display-density notes in
-`docs/modules/tart.md`.
+`docs/content/just/tart.md`.
 
 ### Guest
 

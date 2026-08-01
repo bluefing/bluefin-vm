@@ -1,0 +1,52 @@
+[project]
+site_name = "bluefin-vm"
+# Forward-looking: the repo is private during the restructure, so nothing is
+# published yet and no CI/Pages workflow exists. Build locally with
+# `uv run zensical serve` from this directory.
+site_url = "https://bluefing.github.io/bluefin-vm/"
+repo_url = "https://github.com/bluefing/bluefin-vm"
+docs_dir = "content"
+site_dir = "site"
+
+nav = [
+    { "Home" = "index.md" },
+    { "Getting Started" = [
+        "getting-started/install.md",
+    ]},
+    { "Guide" = [
+        "guide/provisioning.md",
+        "guide/architecture.md",
+    ]},
+    { "Modules" = [
+        "just/cli.md",
+        "just/tart.md",
+        "just/build.md",
+    ]},
+    { "Reference" = [
+        "reference/repo-structure.md",
+    ]},
+    { "External" = [
+        { "Bluefin" = "https://docs.projectbluefin.io/" },
+        { "Tart" = "https://tart.run/" },
+        { "Just" = "https://just.systems/" },
+        { "chezmoi" = "https://www.chezmoi.io/" },
+    ]},
+]
+
+[project.theme]
+name = "material"
+features = ["content.code.copy"]
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "teal"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "teal"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"

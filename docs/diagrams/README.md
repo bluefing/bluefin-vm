@@ -2,7 +2,7 @@
 
 Mermaid diagrams of what the scripts and the `bluefin-vm` CLI actually do,
 stage by stage, including the decisions each one makes. Each file covers one
-flow; read `docs/modules/build.md` and `docs/PROVISIONING.md` for the prose
+flow; read `docs/content/just/build.md` and `docs/PROVISIONING.md` for the prose
 version of the same ground.
 
 - [`image-build.md`](image-build.md) — `bin/build-image.sh`: `image/Containerfile`

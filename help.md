@@ -1,1 +1,1 @@
-docs/modules/root.md
+docs/content/reference/repo-structure.md
