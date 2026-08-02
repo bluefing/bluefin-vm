@@ -30,7 +30,8 @@ pick up cold.
   language.
 - **`docs/ROADMAP.md`** → fold decided items into `open-questions.md`; live stories
   into `internal/planning/backlog.md`.
-- **`docs/BACKLOG.md`** → `internal/planning/backlog.md`; fix its stale
+- **`docs/BACKLOG.md`** → merge into `internal/planning/backlog.md` (which now
+  exists, holding the TUI/CLI items from design review); fix its stale
   `docs/modules/*` path references as part of the move.
 - Consider `internal/requirements/cross-cutting.md` (testing/lint/CI conventions)
   if it earns its place.
