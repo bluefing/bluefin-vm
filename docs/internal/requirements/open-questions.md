@@ -8,17 +8,15 @@ questions still genuinely open. The credential model itself lives in
 
 ### No extra declarative framework (Terraform / Ansible / NixOS)
 
-**Decision:** don't adopt Terraform, Ansible, or NixOS. The declarative story is
-already covered by tools that fit the Bluefin/OCI/Tart shape, and each framework
-would either duplicate a layer or fight the premise.
+**Decision:** *bluefin-vm's own machinery* doesn't adopt Terraform, Ansible, or
+NixOS. The two jobs the project itself owns are already covered by tools that fit
+the Bluefin/OCI/Tart shape. Read each row as "for this job we use X, so the
+project doesn't need Y":
 
-Three declarative layers already exist, each in the idiomatic tool:
-
-| Layer | Role | Tool in use | Framework it displaces |
-| --- | --- | --- | --- |
-| System image | reproducible OS build | bootc `Containerfile` + `config.toml` | NixOS — this *is* declarative IaC, done the OCI way |
-| VM lifecycle | cpu/mem/display spec → Tart | Rust CLI + `just` + per-VM profile | Terraform |
-| User environment | dotfiles convergence | chezmoi (the customisation hook) | Ansible / home-manager |
+| The project's job | What we use for it | So the project doesn't need |
+| --- | --- | --- |
+| Build the OS image, reproducibly | bootc `Containerfile` + `config.toml` | NixOS |
+| Create and size the VM (cpu, memory, display) | Rust CLI + `just` + a saved per-VM profile | Terraform |
 
 - **NixOS** is a non-starter as the OS — it would mean discarding Bluefin, which
   is the whole point. The "declarative OS in a repo" role is filled by the
@@ -26,10 +24,16 @@ Three declarative layers already exist, each in the idiomatic tool:
 - **Terraform** wraps a state file around one local resource, and the disk-build
   pipeline is procedural, not resource-shaped. It would only earn its keep for a
   fleet or cloud-hosted Tart.
-- **Ansible** is the closest fit but overlaps `provision.sh` (first-boot
-  bootstrap) on one side and chezmoi (user convergence) on the other, for the sake
-  of a ~50-line bootstrap seam. It pays off for day-2 convergence across many
-  VMs, not first boot of one.
+- **Ansible** we don't adopt for the project's own machinery either: its natural
+  home would be the first-boot account bootstrap, but that's a ~50-line seam where
+  bash is right-sized, and day-2 convergence across many VMs (where Ansible earns
+  its keep) isn't the target.
+
+Setting up the **user's environment** is deliberately *not* the project's choice
+to make. bluefin-vm provides a hook (below) that runs whatever the user brings —
+chezmoi, `ansible-pull`, home-manager, or a plain script. So none of those is
+"displaced"; the project simply doesn't bundle one. chezmoi is the maintainer's
+own tool, an example, not a mandate.
 
 The only imperative code is the thin first-boot glue bridging host → guest for the
 account; bash is the right size for it. Where we lean into "declarative" instead:
@@ -40,14 +44,26 @@ editable, re-appliable spec, with the CLI as the apply engine.
 Tart (Cirrus) — then a Tart Terraform provider or Ansible day-2 layer becomes
 worth the weight.
 
+### sudo posture — a setup toggle
+
+**Decision:** passwordless `sudo` is its own toggle in `bluefin-vm setup`,
+independent of everything else. Login password and sudo were always independent
+choices; today sudo is instead a side effect of the (now-dropped) autologin
+flag, so this decouples it.
+
+- **Default: `sudo` prompts** for the login password. Not for security (the
+  account is admin either way) but as a speed-bump, so a mistyped or pasted
+  command can't silently run as root. Prompting is the default state, so this
+  means simply *not* writing the `NOPASSWD` sudoers file.
+- **Toggle on: passwordless** — write the `NOPASSWD` sudoers drop-in, matching
+  Hashimoto. For the user who'd rather never be asked.
+
+Implementation (lands with the drop-autologin realignment): a `passwordless_sudo`
+config field + a TUI toggle, a flag the host writes to the share, and a branch in
+`provision.sh` that writes the sudoers file only when it's set — replacing the
+current autologin-coupled branch.
+
 ## Open
-
-### sudo posture
-
-Login password and sudo are independent choices (see `../design/access.md`).
-Proposed **(a): password sudo** — a deliberate prompt guards a fat-fingered or
-pasted root command, and it deletes the passwordless-sudo drop-in. Alternative
-**(b):** follow Hashimoto's setup (passwordless sudo). Not yet confirmed.
 
 ### User customisation hook mechanism
 
