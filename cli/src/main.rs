@@ -36,9 +36,6 @@ struct ProvisionArgs {
     /// SSH public key to authorise (default: auto-detected ~/.ssh/*.pub).
     #[arg(long)]
     ssh_key: Option<PathBuf>,
-    /// Boot to the greeter instead of autologging into the provisioned user.
-    #[arg(long)]
-    no_autologin: bool,
 }
 
 #[derive(Subcommand)]
@@ -249,8 +246,10 @@ fn up(
     );
     match &provisioned {
         Some(user) => {
-            eprintln!("First boot creates '{user}' — log in there (autologin / ssh key).");
-            eprintln!("Lock it down anytime: run `bluefin-vm-harden` in the VM.");
+            eprintln!(
+                "First boot creates '{user}' — log in at the greeter (password = '{user}') or ssh in with your key."
+            );
+            eprintln!("Set a password of your own: run `bluefin-vm-harden` in the VM.");
         }
         None => eprintln!("No provisioning — the baked test login (bluefin/bluefin) applies."),
     }
@@ -387,16 +386,13 @@ impl ProvisionArgs {
             .map(core::config::SshKey::Path)
             .or_else(|| saved.and_then(|a| a.ssh_key.clone()))
             .or_else(|| default_ssh_key().map(core::config::SshKey::Path));
-        // --no-autologin only ever disables; otherwise fall to the profile, then on.
-        let autologin = if self.no_autologin {
-            false
-        } else {
-            saved.and_then(|a| a.autologin).unwrap_or(true)
-        };
+        // The sudo and ssh-password postures are profile-only (set via `setup`),
+        // like scale -- carry the saved values through so a CLI run preserves them.
         Ok(core::config::Account {
             user: Some(user),
             ssh_key,
-            autologin: Some(autologin),
+            sudo_password: saved.and_then(|a| a.sudo_password),
+            ssh_password_auth: saved.and_then(|a| a.ssh_password_auth),
         })
     }
 }
@@ -423,7 +419,8 @@ fn provision_from(
     Ok(core::provision::Provision {
         username,
         authorized_keys,
-        autologin: account.autologin.unwrap_or(true),
+        sudo_password: account.sudo_password.unwrap_or(true),
+        ssh_password_auth: account.ssh_password_auth.unwrap_or(true),
         scale,
     })
 }

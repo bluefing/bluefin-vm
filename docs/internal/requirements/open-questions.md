@@ -58,10 +58,10 @@ flag, so this decouples it.
 - **Toggle on: passwordless** — write the `NOPASSWD` sudoers drop-in, matching
   Hashimoto. For the user who'd rather never be asked.
 
-Implementation (lands with the drop-autologin realignment): a `passwordless_sudo`
-config field + a TUI toggle, a flag the host writes to the share, and a branch in
-`provision.sh` that writes the sudoers file only when it's set — replacing the
-current autologin-coupled branch.
+Implementation (delivered on the drop-autologin branch): a `sudo_password`
+config field (`true` = prompts, the default) + a TUI toggle, a `passwordless-sudo`
+flag the host writes when it's off, and a branch in `provision.sh` that writes
+the sudoers rule when that flag is present.
 
 ## Open
 

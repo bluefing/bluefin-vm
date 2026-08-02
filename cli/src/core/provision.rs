@@ -2,7 +2,9 @@
 //!
 //! The guest oneshot (`image/provision.sh`) reads these files on first boot to
 //! create the user's account, then deletes them. Credential model: public key
-//! only, no password (see that script and README "First-boot provisioning").
+//! plus a login password of `password == username` (a public convention, not a
+//! secret); `sudo` prompts and ssh password login is on unless a flag file says
+//! otherwise (see that script and `docs/PROVISIONING.md`).
 
 use std::fs;
 use std::path::Path;
@@ -17,7 +19,12 @@ pub struct Provision {
     pub username: String,
     /// One or more ssh public keys (the authorized_keys file's contents).
     pub authorized_keys: String,
-    pub autologin: bool,
+    /// Whether `sudo` prompts for a password; default `true`. `false` writes a
+    /// `NOPASSWD` sudoers rule (passwordless).
+    pub sudo_password: bool,
+    /// Allow ssh password login; default `true` (as the base image ships).
+    /// `false` writes an sshd drop-in disabling it.
+    pub ssh_password_auth: bool,
     /// Guest desktop scale percentage (100 or 200); `None` leaves GNOME's
     /// own default alone.
     pub scale: Option<u32>,
@@ -52,16 +59,25 @@ pub fn write(share: &Path, p: &Provision) -> Result<()> {
     fs::write(dir.join("authorized_keys"), &p.authorized_keys)
         .context("writing authorized_keys")?;
 
-    // Presence is the flag; clear a stale one when autologin is off.
-    let autologin = dir.join("autologin");
-    if p.autologin {
-        fs::write(&autologin, "").context("writing autologin")?;
+    // One rule for both postures: a `true` (on) field is the default and writes
+    // nothing; a `false` writes the non-default flag file the guest acts on
+    // (and a stale one is cleared, so it never lingers into a later provision).
+    let passwordless_sudo = dir.join("passwordless-sudo");
+    if !p.sudo_password {
+        fs::write(&passwordless_sudo, "").context("writing passwordless-sudo")?;
     } else {
-        let _ = fs::remove_file(&autologin);
+        let _ = fs::remove_file(&passwordless_sudo);
+    }
+    let disable_ssh_password = dir.join("disable-ssh-password");
+    if !p.ssh_password_auth {
+        fs::write(&disable_ssh_password, "").context("writing disable-ssh-password")?;
+    } else {
+        let _ = fs::remove_file(&disable_ssh_password);
     }
 
-    // Same pattern as autologin: presence (and content) is the value, cleared
-    // when unset so a stale scale from an earlier provision doesn't linger.
+    // Same pattern as the flags above, but with content: the value is the file
+    // body, cleared when unset so a stale scale from an earlier provision
+    // doesn't linger.
     let scale = dir.join("scale");
     match p.scale {
         Some(pct) => fs::write(&scale, format!("{pct}\n")).context("writing scale")?,
@@ -95,7 +111,8 @@ mod tests {
             &Provision {
                 username: "alice".into(),
                 authorized_keys: "ssh-ed25519 AAAAKEY alice@mac\n".into(),
-                autologin: true,
+                sudo_password: false,
+                ssh_password_auth: false,
                 scale: Some(200),
             },
         )
@@ -106,31 +123,35 @@ mod tests {
             fs::read_to_string(dir.join("authorized_keys")).unwrap(),
             "ssh-ed25519 AAAAKEY alice@mac\n"
         );
-        assert!(dir.join("autologin").exists());
+        assert!(dir.join("passwordless-sudo").exists());
+        assert!(dir.join("disable-ssh-password").exists());
         assert_eq!(fs::read_to_string(dir.join("scale")).unwrap(), "200\n");
         let _ = fs::remove_dir_all(&share);
     }
 
     #[test]
-    fn autologin_off_clears_a_stale_flag() {
+    fn default_flags_clear_stale_files() {
         let share = std::env::temp_dir().join("bluefin-vm-provision-off");
         let _ = fs::remove_dir_all(&share);
-        let flag = share.join(DIR).join("autologin");
-        // Pre-existing flag from an earlier provision...
-        fs::create_dir_all(share.join(DIR)).unwrap();
-        fs::write(&flag, "").unwrap();
+        let dir = share.join(DIR);
+        fs::create_dir_all(&dir).unwrap();
+        // Pre-existing flags from an earlier provision...
+        fs::write(dir.join("passwordless-sudo"), "").unwrap();
+        fs::write(dir.join("disable-ssh-password"), "").unwrap();
         write(
             &share,
             &Provision {
                 username: "bob".into(),
                 authorized_keys: String::new(),
-                autologin: false,
+                sudo_password: true,
+                ssh_password_auth: true,
                 scale: None,
             },
         )
         .unwrap();
-        // ...is removed when autologin is off.
-        assert!(!flag.exists());
+        // ...are cleared for a default account (sudo prompts, ssh password on).
+        assert!(!dir.join("passwordless-sudo").exists());
+        assert!(!dir.join("disable-ssh-password").exists());
         let _ = fs::remove_dir_all(&share);
     }
 
@@ -147,7 +168,8 @@ mod tests {
             &Provision {
                 username: "bob".into(),
                 authorized_keys: String::new(),
-                autologin: false,
+                sudo_password: true,
+                ssh_password_auth: true,
                 scale: None,
             },
         )
@@ -166,7 +188,8 @@ mod tests {
             &Provision {
                 username: "Root!".into(),
                 authorized_keys: String::new(),
-                autologin: true,
+                sudo_password: true,
+                ssh_password_auth: true,
                 scale: None,
             },
         );

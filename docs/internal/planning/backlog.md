@@ -21,6 +21,16 @@ overwrite); `path` prints the resolved path; `show` prints the current config.
 Start in `main.rs` (the `Command` enum) and `core/config.rs` (a
 save-if-absent + a default-profile constructor).
 
+### `just tart ssh` should use the profile's user and key
+
+Today the recipe runs `ssh $USER@<ip>` with default key discovery, so it breaks
+whenever the profile differs from the host: a provisioned `usera` isn't reached
+by host `$USER` (`bluefing`), and a non-default key name (e.g. a FIDO
+`id_ed25519_sk_*`) is never offered, so it falls to a password — which fails once
+`ssh_password_auth` is off. Read the VM's profile: default the target to
+`account.user` (fall back to `$USER`) and pass `-i account.ssh_key` when set.
+Surfaced during drop-autologin boot testing.
+
 ## TUI as a control surface
 
 The TUI graduates from a one-shot profile editor into a front-end that also
@@ -60,6 +70,49 @@ existing VM." Extends the idempotency already in `extract.rs` (its
 gate: provisioning is gated on `ConditionPathExists=.../username` and only runs
 at boot, so the hash decides *whether to re-arm* that gate, and taking effect
 still needs a reboot.
+
+## Image
+
+### Remove or hide the baked `bluefin` account from the greeter
+
+The `bluefin` test account comes from `config.toml` (the unpatched build layer),
+so it sits on the greeter alongside the provisioned user on every disk. Options,
+each with a trade-off: drop it from `config.toml` (but a `--no-provision` disk
+then has no login at all); have provisioning lock/remove it once the real account
+exists; or keep it but hide it from the greeter (`AccountsService`
+`SystemAccount=true` / a `NotShowIn`). Surfaced during drop-autologin boot
+testing.
+
+## Testing
+
+### Integration test framework for config-variation behaviour
+
+Unit tests cover the host-side writer and the TUI; the guest-side `provision.sh`
+(account, password, sudoers/sshd drop-ins, scale) has no automated coverage, and
+as the toggles multiply the config → behaviour matrix gets hard to check by hand.
+Add a layered harness:
+
+- **Tier 1 — fast, every PR, no VM.** `provision.sh` runs cleanly in a plain
+  Linux container (its VM-only steps are already guarded: `restorecon` on
+  `/sys/fs/selinux/enforce`, the sshd reload with `|| true`, the scale block
+  degrades when DRM debugfs is absent). Drop synthetic `…/.bluefin-vm/` files
+  into a container, run the script as root, and assert the account/filesystem
+  result — user in `wheel`, `authorized_keys` perms, `password == username` in
+  `/etc/shadow`, the sudoers drop-in present *iff* `passwordless-sudo`, the sshd
+  drop-in present *iff* `disable-ssh-password`, share cleared. Matrix over the
+  flag combinations. Harness: bats + podman/docker, gated behind a
+  `just test-integration` recipe so plain `just test` stays offline.
+- **Tier 2 — slow, on-demand / nightly, Apple Silicon only.** Full
+  `up-provisioned` boot plus assertions over ssh (extend
+  `tests/smoke/guest-checks.sh`) for what a container can't verify: systemd
+  ordering (`Before=gdm`), SELinux *enforcing*, sshd honouring the drop-in live,
+  GUI/polkit. A few representative configs, not the full matrix — each is a real
+  boot.
+
+One enabler: make `provision.sh`'s `pdir` overridable
+(`pdir="${BLUEFIN_VM_PDIR:-/var/mnt/…}"`) so a test needn't write under
+`/var/mnt`. Start Tier 1 on a `fedora` container; add a Bluefin-base variant for
+the nightly.
 
 ## Disk size
 

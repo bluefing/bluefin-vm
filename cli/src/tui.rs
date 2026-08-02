@@ -28,14 +28,15 @@ const DISPLAY_PRESETS: &[&str] = &["2560x1600", "2880x1800", "3024x1890", "3456x
 // Field indices -- the form's fixed layout.
 const F_USER: usize = 0;
 const F_SSH: usize = 1;
-const F_AUTOLOGIN: usize = 2;
-const F_DIR: usize = 3;
-const F_READONLY: usize = 4;
-const F_CPU: usize = 5;
-const F_MEM: usize = 6;
-const F_REFIT: usize = 7;
-const F_DISPLAY: usize = 8;
-const F_SCALE: usize = 9;
+const F_SUDO: usize = 2;
+const F_SSHPW: usize = 3;
+const F_DIR: usize = 4;
+const F_READONLY: usize = 5;
+const F_CPU: usize = 6;
+const F_MEM: usize = 7;
+const F_REFIT: usize = 8;
+const F_DISPLAY: usize = 9;
+const F_SCALE: usize = 10;
 
 // Panel groupings, expressed via the same field-index constants so reordering
 // or inserting a field can't desync a panel's range from the fields it shows.
@@ -46,7 +47,8 @@ const RESOURCES_FIELDS: std::ops::Range<usize> = F_CPU..F_SCALE + 1;
 // Lively per-field accents (material 300-ish palette).
 const A_USER: Color = Color::Rgb(0x4f, 0xc3, 0xf7); // light blue
 const A_SSH: Color = Color::Rgb(0xff, 0xb3, 0x74); // orange
-const A_AUTOLOGIN: Color = Color::Rgb(0x81, 0xc7, 0x84); // green
+const A_SUDO: Color = Color::Rgb(0x81, 0xc7, 0x84); // green
+const A_SSHPW: Color = Color::Rgb(0xff, 0x8a, 0x80); // salmon
 const A_DIR: Color = Color::Rgb(0xf0, 0x6e, 0x8e); // rose
 const A_READONLY: Color = Color::Rgb(0x4d, 0xb6, 0xac); // teal-green
 const A_CPU: Color = Color::Rgb(0xff, 0xd5, 0x4f); // amber
@@ -148,13 +150,23 @@ impl Form {
                 input: ssh_choice(ssh_keys, account.and_then(|a| a.ssh_key.as_ref())),
             },
             Field {
-                label: "Autologin",
-                accent: A_AUTOLOGIN,
-                hint: "on: straight to the desktop, passwordless sudo. off: greeter \
-                       login, password = username, real sudo prompt -- ←/→ or space"
+                label: "Sudo password",
+                accent: A_SUDO,
+                hint: "sudo asks for your login password; off = passwordless \
+                       (no prompt) -- ←/→ or space"
                     .into(),
                 input: Input::Toggle {
-                    on: account.and_then(|a| a.autologin).unwrap_or(true),
+                    on: account.and_then(|a| a.sudo_password).unwrap_or(true),
+                },
+            },
+            Field {
+                label: "SSH password",
+                accent: A_SSHPW,
+                hint: "allow ssh password login; off = key-only (e.g. a bridged VM) \
+                       -- ←/→ or space"
+                    .into(),
+                input: Input::Toggle {
+                    on: account.and_then(|a| a.ssh_password_auth).unwrap_or(true),
                 },
             },
             Field {
@@ -245,7 +257,8 @@ impl Form {
                 Some(s) => SshKey::Path(PathBuf::from(s)),
                 None => SshKey::Disabled,
             }),
-            autologin: Some(self.toggle(F_AUTOLOGIN)),
+            sudo_password: Some(self.toggle(F_SUDO)),
+            ssh_password_auth: Some(self.toggle(F_SSHPW)),
         };
         let share = Share {
             directory: self.text(F_DIR).map(PathBuf::from),
@@ -639,7 +652,7 @@ const BAD: Color = Color::Rgb(0xef, 0x53, 0x50);
 
 fn ui(frame: &mut Frame, form: &Form, phase: u64, flash: Option<&str>) {
     let [top, status, controls] = Layout::vertical([
-        Constraint::Length(19),
+        Constraint::Length(20),
         Constraint::Length(1),
         Constraint::Length(1),
     ])
@@ -655,7 +668,7 @@ fn ui(frame: &mut Frame, form: &Form, phase: u64, flash: Option<&str>) {
     };
     let [title, body, _] = Layout::vertical([
         Constraint::Length(3),
-        Constraint::Length(16),
+        Constraint::Length(17),
         Constraint::Min(0),
     ])
     .areas(formcol);
@@ -675,7 +688,7 @@ fn ui(frame: &mut Frame, form: &Form, phase: u64, flash: Option<&str>) {
     );
 
     let [account, share, resources] = Layout::vertical([
-        Constraint::Length(5),
+        Constraint::Length(6),
         Constraint::Length(4),
         Constraint::Length(7),
     ])
@@ -951,7 +964,8 @@ mod tests {
             account: Account {
                 user: Some("alice".into()),
                 ssh_key: Some(SshKey::Path("/home/me/.ssh/id_rsa.pub".into())),
-                autologin: Some(false),
+                sudo_password: Some(false),
+                ssh_password_auth: Some(false),
             },
             share: Share {
                 directory: Some("/home/me/projects".into()),
@@ -971,7 +985,8 @@ mod tests {
             form.choice(F_SSH).as_deref(),
             Some("/home/me/.ssh/id_rsa.pub")
         );
-        assert!(!form.toggle(F_AUTOLOGIN));
+        assert!(!form.toggle(F_SUDO)); // saved passwordless -> "Sudo password" off
+        assert!(!form.toggle(F_SSHPW)); // saved ssh-password-off round-trips
         assert_eq!(form.text(F_DIR).as_deref(), Some("/home/me/projects"));
         assert!(form.toggle(F_READONLY));
         assert_eq!(form.number(F_CPU), Some(8));
@@ -984,12 +999,14 @@ mod tests {
     #[test]
     fn fresh_form_preselects_first_key_and_default_display() {
         let form = Form::build("v", None, &keys());
-        // first detected key, autologin on, display default (None).
+        // first detected key; sudo password on (prompts) and ssh password on by
+        // default; display default (None).
         assert_eq!(
             form.choice(F_SSH).as_deref(),
             Some("/home/me/.ssh/id_ed25519.pub")
         );
-        assert!(form.toggle(F_AUTOLOGIN));
+        assert!(form.toggle(F_SUDO));
+        assert!(form.toggle(F_SSHPW));
         assert_eq!(form.choice(F_DISPLAY), None);
     }
 
@@ -1009,14 +1026,14 @@ mod tests {
         }
         assert_eq!(form.number(F_CPU), Some(16));
 
-        form.selected = F_AUTOLOGIN; // toggle: space and ←/→ all flip it
-        assert!(form.toggle(F_AUTOLOGIN));
+        form.selected = F_SUDO; // toggle: space and ←/→ all flip it (default on)
+        assert!(form.toggle(F_SUDO));
         form.edit(KeyCode::Char(' '));
-        assert!(!form.toggle(F_AUTOLOGIN));
+        assert!(!form.toggle(F_SUDO));
         form.edit(KeyCode::Right);
-        assert!(form.toggle(F_AUTOLOGIN));
+        assert!(form.toggle(F_SUDO));
         form.edit(KeyCode::Left);
-        assert!(!form.toggle(F_AUTOLOGIN));
+        assert!(!form.toggle(F_SUDO));
 
         form.selected = F_SSH; // choice: right cycles, and wraps to "(none)"
         form.edit(KeyCode::Right); // -> id_rsa

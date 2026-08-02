@@ -13,8 +13,8 @@ the display and shared folder behave.
   a first-boot provisioner that stays dormant — so it boots to the baked `bluefin`
   login.
 - **provisioned**: a patched disk booted with your account staged in the share, so
-  first-boot provisioning personalises it (account, ssh key, autologin). Same disk
-  as patched, plus the staged data.
+  first-boot provisioning personalises it (account, ssh key, password == username).
+  Same disk as patched, plus the staged data.
 
 ## The three ways up
 

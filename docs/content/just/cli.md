@@ -25,7 +25,7 @@ The other subcommands expose each step on its own for debugging:
 
 - your username (host `$USER` by default),
 - your ssh *public* key (auto-detected from `~/.ssh/*.pub`),
-- and the autologin flag.
+- and the sudo/ssh posture flags.
 
 Only public material crosses the share; the guest applies it on first boot and
 clears it. This is the same writer `up` calls, and the same one
@@ -49,4 +49,4 @@ and the pre-commit hook runs it, so it defines what a clean crate means.
 
 `src/core/` is UI-agnostic; `src/main.rs` is the clap front-end. The split lets
 a future ratatui TUI drive the same core — customising the account, ssh key,
-autologin, and resources interactively — without rewriting the operations.
+sudo/ssh posture, and resources interactively — without rewriting the operations.

@@ -27,8 +27,17 @@ pub struct Account {
     pub user: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ssh_key: Option<SshKey>,
+    /// Whether `sudo` prompts for the login password. `None`/`true` is the
+    /// default (it prompts -- a guard against a fat-fingered or pasted root
+    /// command); `false` makes it passwordless (a `NOPASSWD` sudoers rule).
+    /// Kept parallel with `ssh_password_auth`: both are `true = on`.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub autologin: Option<bool>,
+    pub sudo_password: Option<bool>,
+    /// Whether ssh accepts password login. `None`/`true` is the default (on,
+    /// like the base image); `false` writes an sshd drop-in disabling it, for a
+    /// pubkey-only VM.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssh_password_auth: Option<bool>,
 }
 
 /// The account's authorised ssh key. `None` on `Account` means "not set --
@@ -218,7 +227,8 @@ mod tests {
                 account: Account {
                     user: Some("alice".into()),
                     ssh_key: Some(SshKey::Path("/home/alice/.ssh/id_ed25519.pub".into())),
-                    autologin: Some(true),
+                    sudo_password: Some(false),
+                    ssh_password_auth: Some(false),
                 },
                 share: Share {
                     directory: Some("/Users/alice/bluefin-share".into()),

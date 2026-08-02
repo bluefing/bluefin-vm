@@ -33,16 +33,16 @@ sequenceDiagram
     Tart-->>CLI: VM created, disk cloned, cpu memory display set
     opt provisioning not skipped
         CLI->>CLI: resolve account, flag then saved profile then host default
-        CLI->>Cache: write username, authorized keys, autologin, scale into the share
+        CLI->>Cache: write username, authorized keys, sudo/ssh flags, scale into the share
         CLI->>Config: save the resolved account and resources back
     end
     CLI->>Tart: run detached with the share attached
     Tart->>Guest: boot
     opt share carries a pending username
-        Guest->>Guest: run the provisioning oneshot, create the account, install the key, grant scoped sudo, enable autologin, write monitors.xml for the scale
+        Guest->>Guest: run the provisioning oneshot, create the account, install the key, set password == username, apply the sudo/ssh flags, write monitors.xml for the scale
         Guest->>Cache: clear the pending share, consumed once
     end
-    Guest-->>User: desktop ready on autologin, or the baked test login
+    Guest-->>User: greeter login (password == username), or the baked test login
 ```
 
 Precedence throughout is **flag > saved profile > built-in default** (`up`'s

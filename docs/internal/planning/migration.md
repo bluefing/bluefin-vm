@@ -29,10 +29,13 @@ pick up cold.
   Verify Zensical/Material renders the mermaid blocks; reframe autologin/disposable
   language.
 - **`docs/ROADMAP.md`** → fold decided items into `open-questions.md`; live stories
-  into `internal/planning/backlog.md`.
+  into `internal/planning/backlog.md`. Note it still narrates the pre-realignment
+  autologin/passwordless model as current — supersede that against
+  `../design/access.md` when folding.
 - **`docs/BACKLOG.md`** → merge into `internal/planning/backlog.md` (which now
   exists, holding the TUI/CLI items from design review); fix its stale
-  `docs/modules/*` path references as part of the move.
+  `docs/modules/*` path references, and drop the delivered autologin/gdm items,
+  as part of the move.
 - Consider `internal/requirements/cross-cutting.md` (testing/lint/CI conventions)
   if it earns its place.
 

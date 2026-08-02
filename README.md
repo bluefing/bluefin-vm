@@ -47,7 +47,7 @@ Experimental — a working proof-of-concept, not a stable release.
 Not built yet — where this is headed:
 
 - **Interactive setup (TUI)** — a [ratatui](https://ratatui.rs) front-end over
-  the same core, to customise the VM (account, ssh key, autologin, CPU/memory,
+  the same core, to customise the VM (account, ssh key, sudo/ssh posture, CPU/memory,
   image flavour) interactively instead of via flags.
 - **Flavours** — pick a Bluefin variant (e.g. `bluefin-dx`) as the base; each is
   just a different upstream image.

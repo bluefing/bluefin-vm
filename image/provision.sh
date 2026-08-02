@@ -1,24 +1,22 @@
 #!/usr/bin/env bash
 # First-boot provisioning for a downloaded (generic) disk. The host writes the
 # account details into the durable share before boot; this oneshot creates that
-# account so a shipped disk feels personal, without a greeter. With no details
-# present the service is condition-skipped and the baked test login stays the
-# way in.
+# account so a shipped disk feels personal. With no details present the service
+# is condition-skipped and the baked test login stays the way in.
 #
-# Credential model: your ssh public key always goes in (the way into a terminal).
-# The rest depends on the autologin choice:
+# Credential model (a daily-driver account, not a throwaway): your ssh public
+# key goes in, and the login password is set to `password == username` -- a
+# public convention, not a secret (the value is the username, already in the
+# share), giving a usable greeter, a working lock screen, and a password for
+# `sudo` and GUI polkit prompts. From there two host-set flags tune the posture:
 #
-# - Autologin on (default) -> a password-less account: reachable only via
-#   autologin at the desktop, administering via a scoped passwordless-sudo rule,
-#   idle lock disabled. No secret crosses the share -- the disposable-dev posture.
-# - Autologin off -> a normal account with password == username. Not about
-#   keeping attackers out (they gain nothing over a passwordless sudoer) but a
-#   deliberate `sudo` prompt: a guard so a fat-fingered or pasted command can't
-#   silently run as root. No secret in the share -- the value is the username,
-#   already there.
+# - passwordless-sudo (default off) -> `sudo` prompts for that password, a guard
+#   against a fat-fingered or pasted root command; the flag grants NOPASSWD.
+# - disable-ssh-password (default off) -> ssh password login stays on (the VM
+#   sits behind the host's NAT); the flag makes it pubkey-only.
 #
-# Either way no private key or real secret lives in the VM or the share, which
-# this script clears after first boot.
+# No private key or real secret lives in the VM or the share, which this script
+# clears after first boot.
 
 set -euo pipefail
 
@@ -47,45 +45,29 @@ if [[ -s $pdir/authorized_keys ]]; then
   [[ -f /sys/fs/selinux/enforce ]] && restorecon -R "$home/.ssh"
 fi
 
-# Credential posture keys off the autologin flag the host writes:
-#
-# - Autologin on -> a password-less account. A greeter has no password to take,
-#   so autologin is the only way to the desktop; a scoped passwordless-sudo rule
-#   is the only way to administer; and the idle lock is disabled so it can't trap
-#   the session. No secret ever crosses the share.
-# - Autologin off -> a normal account with password == username. The point isn't
-#   security (an attacker gains nothing over a passwordless sudoer) -- it's a
-#   deliberate `sudo` prompt, a guard against a fat-fingered or pasted command
-#   running as root unasked. No secret in the share: the value is the username,
-#   already here. The greeter is usable, sudo takes that password (so no
-#   passwordless rule), and the lock screen works.
-if [[ -e $pdir/autologin ]]; then
+# Login password == username: not a secret (the value is the username, already
+# in the share), just a public convention that gives a usable greeter, a working
+# lock screen, and a password for `sudo` and GUI polkit prompts.
+echo "$user:$user" | chpasswd
+
+# sudo prompts by default -- the login password guards a fat-fingered or pasted
+# root command. Grant NOPASSWD only when the host asked for it.
+if [[ -e $pdir/passwordless-sudo ]]; then
   sudoers="/etc/sudoers.d/bluefin-vm-$user"
   printf '%s ALL=(ALL) NOPASSWD:ALL\n' "$user" >"$sudoers"
   chmod 440 "$sudoers"
+fi
 
-  # No greeter -- bluefin-vm-gdm-autologin edits custom.conf in place so any
-  # settings the base image ships survive.
-  /usr/libexec/bluefin-vm-gdm-autologin "$user"
-
-  # A password-less account can't clear the lock screen either, so an idle lock
-  # would trap the autologin desktop until reboot. Disable it with a dconf system
-  # default (/etc is writable at runtime; /usr is not) -- the screen may still
-  # blank, it just won't lock.
-  if [[ ! -f /etc/dconf/profile/user ]]; then
-    printf 'user-db:user\nsystem-db:local\n' >/etc/dconf/profile/user
-  elif ! grep -q '^system-db:local' /etc/dconf/profile/user; then
-    echo 'system-db:local' >>/etc/dconf/profile/user
-  fi
-  mkdir -p /etc/dconf/db/local.d
-  printf '[org/gnome/desktop/screensaver]\nlock-enabled=false\n' \
-    >/etc/dconf/db/local.d/00-bluefin-vm-nolock
-  dconf update
-else
-  # Password == username: a usable greeter login and a real `sudo` prompt, so an
-  # accidental root command is caught. No secret added -- the value is the
-  # username, already in the share.
-  echo "$user:$user" | chpasswd
+# ssh password login stays on by default (the VM sits behind the host's NAT).
+# Turn it off (pubkey-only) only when the host asked -- for a bridged or hardened
+# VM. The 00- prefix wins first-match over the base image's own drop-ins; reload
+# so it takes effect on this first boot, not just the next.
+if [[ -e $pdir/disable-ssh-password ]]; then
+  drop=/etc/ssh/sshd_config.d/00-bluefin-vm-nopassword.conf
+  printf 'PasswordAuthentication no\n' >"$drop"
+  # Relabel where SELinux is active so sshd (sshd_t) may read the drop-in.
+  [[ -f /sys/fs/selinux/enforce ]] && restorecon "$drop"
+  systemctl try-reload-or-restart sshd.service 2>/dev/null || true
 fi
 
 # Guest desktop scale, pre-seeded into monitors.xml before the session starts so
