@@ -20,7 +20,9 @@
 
 set -euo pipefail
 
-pdir=/var/mnt/shared/bluefin-share/.bluefin-vm
+# The share sub-directory the host wrote. Overridable so the integration tests
+# can run this script against a synthetic share in a container.
+pdir="${BLUEFIN_VM_PDIR:-/var/mnt/shared/bluefin-share/.bluefin-vm}"
 user=$(<"$pdir/username")
 
 # Validate before creating anything: a malformed name would otherwise land in a

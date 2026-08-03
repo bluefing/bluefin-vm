@@ -29,6 +29,13 @@ setup:
 test: cli::test
   bats tests
 
+# Tier 1 integration: run provision.sh in a container across the config matrix
+# (needs docker; see docs/internal/design/testing-strategy.md). Kept out of
+# `test` so the inner loop stays offline and fast.
+[group('test')]
+test-integration:
+  bats tests/integration
+
 # Run all pre-commit hooks on all files (shellcheck, shfmt, yaml, tests, ...)
 [group('test')]
 lint:
