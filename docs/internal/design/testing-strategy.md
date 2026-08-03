@@ -66,6 +66,44 @@ greeter existing, the share mounting, display/clipboard. Run a **handful of
 representative profiles** (default; both toggles hardened; scale-on) — each is a
 real boot, so no full matrix here.
 
+## Test layout
+
+Where each tier's tests live, so the separation is structural and doesn't smear
+as tests accrue. This is the target; the tree today is a flat `tests/*.bats` plus
+`tests/integration/` and `tests/smoke/`, and moving to the layout below is a
+follow-up.
+
+| Tier | Location | Kind |
+| --- | --- | --- |
+| 0 · Unit | `cli/src/**` (`#[cfg(test)]`, `cargo test`) | true unit tests, in-crate by Rust convention |
+| 0 · Offline | `tests/offline/*.bats` | script arg/dry-run and recipe/config contracts; no external deps |
+| 1 · Integration | `tests/integration/` | `provision.sh` in a container (the config matrix) |
+| 2 · End-to-end | `tests/e2e/` | in-VM boot checks over ssh |
+
+```
+tests/
+  offline/      # Tier 0 bats (moved from the tests/ root)
+  integration/  # Tier 1
+  e2e/          # Tier 2 (renamed from smoke/)
+  README.md     # this taxonomy, in brief, beside the tests
+```
+
+Naming decisions:
+
+- **`offline/`, not `unit/`.** These bats test *contracts* — argument handling,
+  dry-run command construction, recipe wiring, config validity — not isolated
+  units. The true unit tests are the Rust `#[cfg(test)]` modules, which stay in
+  the crate (they reach private items; Rust's own `tests/` dir is for public-API
+  integration only). `tests/README.md` points there so the units don't look
+  missing.
+- **`e2e/`, renamed from `smoke/`.** Tier 2 grows past a smoke check into the
+  over-ssh posture assertions that reuse `assert-posture.sh`.
+
+The governing rule, stated in `tests/README.md`: **a test goes in the directory
+for the cheapest tier that can run it; never add docker- or VM-dependent tests to
+`offline/`.** That one rule is what keeps the separation from eroding across
+sessions.
+
 ## One shared asset: posture assertions
 
 Write the guest assertions once, parametrised by expected state (env such as
