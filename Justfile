@@ -24,17 +24,19 @@ mod docs '.just/docs'
 setup:
   pre-commit install
 
-# Run the test suite: bats (offline) + the cli's Rust unit tests
+# Tier 0: the cli's Rust unit tests + the offline bats contracts -- fast, no deps
 [group('test')]
 test: cli::test
-  bats tests
+  bats tests/offline
 
-# Tier 1 integration: run provision.sh in a container across the config matrix
-# (needs docker; see docs/internal/design/testing-strategy.md). Kept out of
-# `test` so the inner loop stays offline and fast.
+# Tier 1: run provision.sh in a container across the config matrix (needs docker)
 [group('test')]
 test-integration:
   bats tests/integration
+
+# Tier 2: the guest smoke test in a running VM (run `just tart up` first)
+[group('test')]
+test-e2e: tart::smoke
 
 # Run all pre-commit hooks on all files (shellcheck, shfmt, yaml, tests, ...)
 [group('test')]

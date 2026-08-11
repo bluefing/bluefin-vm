@@ -26,8 +26,9 @@ them. Reach into a module for its own context with `just <module> help`.
   `default_image`), `_common.just` the shared helpers (including `help`).
 - **`cli/`** — the `bluefin-vm` Rust binary a user installs. `src/core/` is
   UI-agnostic so a future TUI drives the same operations.
-- **`tests/`** — the offline bats suite plus `tests/smoke/guest-checks.sh`, the
-  in-VM acceptance check.
+- **`tests/`** — tiered: `offline/` (offline bats contracts), `integration/`
+  (the `provision.sh` container matrix), and `e2e/guest-checks.sh` (the in-VM
+  acceptance check). `tests/README.md` states which tier a new test belongs in.
 - **`.github/workflows/`** — CI: the ARM64 disk build, and the release that
   packages the tool on a `v*` tag. The Homebrew formula lives in the tap repo
   (`bluefing/homebrew-tap`), not here.

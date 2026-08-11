@@ -69,9 +69,7 @@ real boot, so no full matrix here.
 ## Test layout
 
 Where each tier's tests live, so the separation is structural and doesn't smear
-as tests accrue. This is the target; the tree today is a flat `tests/*.bats` plus
-`tests/integration/` and `tests/smoke/`, and moving to the layout below is a
-follow-up.
+as tests accrue.
 
 | Tier | Location | Kind |
 | --- | --- | --- |
@@ -82,9 +80,9 @@ follow-up.
 
 ```
 tests/
-  offline/      # Tier 0 bats (moved from the tests/ root)
+  offline/      # Tier 0 bats
   integration/  # Tier 1
-  e2e/          # Tier 2 (renamed from smoke/)
+  e2e/          # Tier 2
   README.md     # this taxonomy, in brief, beside the tests
 ```
 
@@ -110,7 +108,7 @@ Write the guest assertions once, parametrised by expected state (env such as
 `EXPECT_PASSWORDLESS_SUDO=1`, `EXPECT_SSH_PASSWORD=0`). Tier 1 runs them inside
 the container after `provision.sh`; Tier 2 runs the same script over ssh in the
 booted VM. Reuse keeps the two tiers honest with each other rather than drifting.
-This extends the existing check/report pattern in `tests/smoke/guest-checks.sh`.
+This extends the existing check/report pattern in `tests/e2e/guest-checks.sh`.
 
 ## Local and CI mapping
 

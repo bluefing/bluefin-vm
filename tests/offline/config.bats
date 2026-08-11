@@ -3,7 +3,7 @@
 # "min-free-space-percent" build failure on Bluefin's large desktop image.
 
 setup() {
-  cd "$BATS_TEST_DIRNAME/.." || exit 1
+  cd "$BATS_TEST_DIRNAME/../.." || exit 1
 }
 
 @test "config.toml sizes the root filesystem" {

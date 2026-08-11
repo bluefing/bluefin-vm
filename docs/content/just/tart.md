@@ -113,7 +113,7 @@ friendly symlink.
 ## Checking a patched VM works
 
 `smoke` validates a *booted* VM rather than the plumbing: it delivers
-`tests/smoke/guest-checks.sh` through the share, runs it in the guest, and
+`tests/e2e/guest-checks.sh` through the share, runs it in the guest, and
 asserts the result log came back — which doubles as proof the share round-trips.
 It logs in as the baked `bluefin` account by default (the one a fresh disk
 always has); pass `--user` for a provisioned VM. The recipe's exit code is the

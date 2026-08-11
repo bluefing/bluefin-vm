@@ -5,7 +5,7 @@
 # and for the tart verbs (up/start/stop) sharing one arg meaning.
 
 setup() {
-  cd "$BATS_TEST_DIRNAME/.." || exit 1
+  cd "$BATS_TEST_DIRNAME/../.." || exit 1
   command -v just >/dev/null 2>&1 || skip "just not installed"
 }
 
@@ -81,7 +81,7 @@ setup() {
 
 @test "just tart smoke delivers the script, runs it, and asserts the round-trip" {
   run just --dry-run tart smoke
-  [[ "$output" == *"tests/smoke/guest-checks.sh"* ]]
+  [[ "$output" == *"tests/e2e/guest-checks.sh"* ]]
   [[ "$output" == *"tart ip"* ]]
   [[ "$output" == *"bash ~/Shared/guest-checks.sh"* ]]
   # Defaults to the baked login (the account a fresh disk always has).

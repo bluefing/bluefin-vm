@@ -88,7 +88,7 @@ ssh name=default_name user='$USER':
 ip name=default_name:
   tart ip "{{name}}" --resolver arp
 
-# Run the guest smoke test in a running VM: deliver tests/smoke/guest-checks.sh
+# Run the guest smoke test in a running VM: deliver tests/e2e/guest-checks.sh
 # through the share, run it over ssh with a host-generated run id, then assert
 # the guest wrote that exact file back -- which proves the share round-trip
 # deterministically (host picks the name, so seeing it isn't coincidence). The
@@ -106,7 +106,7 @@ smoke name=default_name user='bluefin':
   run_id="$(date +%Y%m%d-%H%M%S)"
   expected="{{default_share}}/${run_id}-guest-checks.log"
   mkdir -p "{{default_share}}"
-  cp tests/smoke/guest-checks.sh "{{default_share}}/"
+  cp tests/e2e/guest-checks.sh "{{default_share}}/"
   guest_rc=0
   ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
     "{{user}}@$(just tart ip "{{name}}")" \

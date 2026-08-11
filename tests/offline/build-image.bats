@@ -2,7 +2,7 @@
 # build-image.sh: argument handling and dry-run command construction.
 
 setup() {
-  cd "$BATS_TEST_DIRNAME/.." || exit 1
+  cd "$BATS_TEST_DIRNAME/../.." || exit 1
 }
 
 @test "build-image.sh -h exits 0 and prints usage" {

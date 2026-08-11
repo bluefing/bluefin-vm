@@ -3,7 +3,7 @@
 # need no cargo and no arm64 host, so these run everywhere (CI is x86 Linux).
 
 setup() {
-  cd "$BATS_TEST_DIRNAME/.." || exit 1
+  cd "$BATS_TEST_DIRNAME/../.." || exit 1
 }
 
 @test "package-cli.sh -h exits 0 and prints usage" {

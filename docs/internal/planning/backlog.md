@@ -104,7 +104,7 @@ Add a layered harness:
   `just test-integration` recipe so plain `just test` stays offline.
 - **Tier 2 — slow, on-demand / nightly, Apple Silicon only.** Full
   `up-provisioned` boot plus assertions over ssh (extend
-  `tests/smoke/guest-checks.sh`) for what a container can't verify: systemd
+  `tests/e2e/guest-checks.sh`) for what a container can't verify: systemd
   ordering (`Before=gdm`), SELinux *enforcing*, sshd honouring the drop-in live,
   GUI/polkit. A few representative configs, not the full matrix — each is a real
   boot.
