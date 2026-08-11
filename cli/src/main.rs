@@ -15,8 +15,10 @@ use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use indicatif::{ProgressBar, ProgressStyle};
 
-/// Where the CI-built seed is published (Cloudflare R2).
-const DEFAULT_SEED_URL: &str = "https://projectbluefin.dev/bluefin-vm-raw-arm64.zip";
+/// Where the CI-built disk image is published (Cloudflare R2, via the
+/// `disks.bluefing.net` custom domain). Hardcoded for now -- lifting it into
+/// config, and renaming the legacy `seed` terms to `image`, are backlog items.
+const DEFAULT_SEED_URL: &str = "https://disks.bluefing.net/bluefin-vm-raw-arm64.zip";
 /// Default Tart VM label — matches the `just` recipes' `default_name`.
 const DEFAULT_VM_NAME: &str = "Bluefin";
 

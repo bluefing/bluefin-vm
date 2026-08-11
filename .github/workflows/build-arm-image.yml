@@ -21,6 +21,10 @@ on:
         description: Layer image/Containerfile onto the source image first
         default: true
         type: boolean
+      publish:
+        description: Publish the disk image to R2 (raw + patched builds only)
+        default: true
+        type: boolean
   # Uncomment to rebuild weekly so the artifact tracks upstream:
   # schedule:
   #   - cron: '0 6 * * 1'
@@ -34,6 +38,7 @@ jobs:
       IMAGE: ${{ github.event.inputs.image || 'ghcr.io/ublue-os/bluefin:lts-testing-50-arm64' }}
       FORMAT: ${{ github.event.inputs.format || 'raw' }}
       PATCHED: ${{ github.event.inputs.patched || 'true' }}
+      PUBLISH: ${{ github.event.inputs.publish || 'true' }}
       PATCHED_TAG: localhost/bluefin-vm-patched:ci
     steps:
       - uses: actions/checkout@v4
@@ -67,7 +72,12 @@ jobs:
       - name: List artifacts
         run: ls -lhR output
 
+      # Disabled for now: R2 (the "Publish disk image to R2" step below) is the
+      # distribution while we prove it out. The GitHub artefact duplicates that
+      # image and counts against Actions storage, so it's off -- re-enable or
+      # remove once R2 is confirmed working end to end.
       - name: Upload image
+        if: false
         uses: actions/upload-artifact@v4
         with:
           # <format>-arm64-<patched|stock>-<ref>-<shortsha>: self-describing and
@@ -78,3 +88,35 @@ jobs:
           if-no-files-found: error
           # Disk images are multi-GB; keep retention short.
           retention-days: 7
+
+      # Publish the disk image to R2 so `bluefin-vm up` can download it, under a
+      # stable name (the versioned artifact above is separate). Only for the raw
+      # + patched disk -- the shape the CLI expects (image/disk.raw with the
+      # first-boot provisioner). Zip the same output/ contents the CI artifact
+      # has -- image/disk.raw (what the extractor reads) plus manifest-raw.json --
+      # so the published image mirrors the build. Cache-Control: no-cache so
+      # Cloudflare revalidates by ETag -- a fresh build is served immediately, no
+      # cache-purge token needed. Secrets/config all via env, quoted in run.
+      - name: Publish disk image to R2
+        if: env.PUBLISH == 'true' && env.FORMAT == 'raw' && env.PATCHED == 'true'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          BUCKET: bluefin-vm-disks
+          DISK_IMAGE: bluefin-vm-raw-arm64.zip
+        run: |
+          set -euo pipefail
+          ( cd output && zip -r "../$DISK_IMAGE" image manifest-raw.json )
+          sha256sum "$DISK_IMAGE" | awk '{print $1}' > "$DISK_IMAGE.sha256"
+          endpoint="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          aws s3 cp "$DISK_IMAGE" "s3://$BUCKET/$DISK_IMAGE" \
+            --endpoint-url "$endpoint" \
+            --content-type application/zip \
+            --cache-control no-cache
+          aws s3 cp "$DISK_IMAGE.sha256" "s3://$BUCKET/$DISK_IMAGE.sha256" \
+            --endpoint-url "$endpoint" \
+            --content-type text/plain \
+            --cache-control no-cache
+          echo "Published https://disks.bluefing.net/$DISK_IMAGE (sha256 $(cat "$DISK_IMAGE.sha256"))"

@@ -31,6 +31,24 @@ by host `$USER` (`bluefing`), and a non-default key name (e.g. a FIDO
 `account.user` (fall back to `$USER`) and pass `-i account.ssh_key` when set.
 Surfaced during drop-autologin boot testing.
 
+### Lift the image URL into config
+
+`DEFAULT_SEED_URL` is a hardcoded `const` in `main.rs`
+(`https://disks.bluefing.net/bluefin-vm-raw-arm64.zip`), which is really config.
+Make it a profile/global setting with the const as the fallback default, and
+pair it with the published `.sha256` so `up`/`download` verify the checksum by
+default rather than only on `--sha256`. Fits the `bv config` work.
+
+### Rename the legacy `seed` terminology to `image`
+
+"seed" is non-standard for the downloadable prebuilt disk and doesn't land with a
+cloud-native audience (they read it as database/torrent/terraform seeding). New
+content already uses `image`/`disk image`; the legacy term still spans ~54 spots
+(`DEFAULT_SEED_URL`, `seed_filename`, `core/extract.rs`, `core/mod.rs`, tests,
+comments). Rename them in one mechanical pass, keeping the artifact filename
+(`bluefin-vm-raw-arm64.zip`) unchanged. Say "disk image" where it could be
+confused with the bootc container image.
+
 ## TUI as a control surface
 
 The TUI graduates from a one-shot profile editor into a front-end that also
