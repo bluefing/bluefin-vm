@@ -310,7 +310,14 @@ def main() -> int:
     Returns:
         A process exit code as described in the module docstring.
     """
-    config_home = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
+    # The unit condition (%h/.config/...) and provision.sh both address
+    # ~/.config literally -- provisioning runs before the user's session
+    # environment exists, so it can never honour a session XDG_CONFIG_HOME.
+    # Read the same fixed path so no environment can split the three apart;
+    # the override exists for tests, like provision.sh's BLUEFIN_VM_PDIR.
+    config_home = os.environ.get(
+        "BLUEFIN_VM_CONFIG_HOME", os.path.expanduser("~/.config")
+    )
     request_path = os.path.join(config_home, "bluefin-vm", "scale-request")
 
     try:
@@ -330,10 +337,16 @@ def main() -> int:
         log.error("PyGObject is unavailable; the image build should have caught this")
         return 1
 
-    bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-    proxy = Gio.DBusProxy.new_sync(
-        bus, Gio.DBusProxyFlags.NONE, None, BUS_NAME, OBJECT_PATH, BUS_NAME, None
-    )
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        proxy = Gio.DBusProxy.new_sync(
+            bus, Gio.DBusProxyFlags.NONE, None, BUS_NAME, OBJECT_PATH, BUS_NAME, None
+        )
+    except GLib.Error as e:
+        # A session bus that isn't up yet is the same transient as mutter not
+        # yet owning the DisplayConfig name.
+        log.warning("session bus not ready (%s); keeping the request", e.message)
+        return os.EX_TEMPFAIL
     state = fetch_state(proxy)
     if state is None:
         log.warning("keeping the request for the next login")

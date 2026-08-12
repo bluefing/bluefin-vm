@@ -9,7 +9,7 @@ The rule that keeps the separation from eroding:
 
 | Dir | Tier | What | Run with | Needs |
 | --- | --- | --- | --- | --- |
-| `offline/` | 0 | bats contracts (script arg/dry-run, recipe wiring, `config.toml`) + pytest units for the guest python scripts | `just test` | nothing |
+| `offline/` | 0 | bats contracts (script arg/dry-run, recipe wiring, `config.toml`) + pytest units for the guest python scripts | `just test` | pre-commit |
 | `integration/` | 1 | `provision.sh` in a container, across the config matrix | `just test-integration` | Docker |
 | `e2e/` | 2 | `guest-checks.sh` and `check-scale.sh` in a booted VM, over ssh | `just test-e2e` / `just tart check-scale` (VM up first) | a running VM |
 
