@@ -70,11 +70,11 @@ cannot loop), and `EX_TEMPFAIL` for a transient failure (mutter not up within
 the wait), which keeps the request so the next login retries. The unit treats
 `EX_TEMPFAIL` as success so retries stay quiet.
 
-The oneshot is Python — the only Python in the repo, which the guest platform
-justifies: it is a Fedora/GNOME system where python3 with PyGObject is the
-native glue for structured DBus work, and the doubles must survive the
-round-trip bit-exact. The image build asserts `import gi` so a base image
-that stops shipping PyGObject fails at build time rather than at login.
+The oneshot is Python: the guest is a Fedora/GNOME system where python3 with
+PyGObject is the native glue for structured DBus work, and the doubles must
+survive the round-trip bit-exact. The image build asserts `import gi` so a
+base image that stops shipping PyGObject fails at build time rather than at
+login.
 
 ## Testing
 

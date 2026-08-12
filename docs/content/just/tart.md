@@ -96,9 +96,8 @@ The scale can't be handed to Tart (its HiDPI units are macOS-guest only; the
 Linux scanout is raw pixels, a Virtualisation.framework limitation), and the
 scales mutter accepts are per-mode values only its session API reports — so a
 guest oneshot applies the scale at first login by querying mutter and snapping
-to the nearest supported value (the internal display-scale design doc carries
-the detail). Scale needs a stable mode, which is why it only works with refit
-off.
+to the nearest supported value. Scale needs a stable mode, which is why it
+only works with refit off.
 
 Resources (cpu, memory, display, scale, refit) come from the VM's saved profile,
 set with `bluefin-vm setup`; the built-in defaults are 4 vCPUs, 4096 MiB, a

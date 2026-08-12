@@ -74,11 +74,11 @@ fi
 
 # Guest desktop scale: hand the requested percentage to the user session. It
 # can't be applied here -- the scales mutter accepts are per-mode values only
-# its session-bus API reports (the design doc and apply-scale.py carry the
-# detail) -- so the bluefin-vm-apply-scale user oneshot, gated on this file,
-# snaps and applies it at first login. The host writes the scale file only
-# when the profile has refit off (a fixed resolution); with refit on the guest
-# mode follows the window, so there's no stable mode to pin a scale to.
+# its session-bus API reports -- so the bluefin-vm-apply-scale user oneshot,
+# gated on this file, snaps and applies it at first login. The host writes the
+# scale file only when the profile has refit off (a fixed resolution); with
+# refit on the guest mode follows the window, so there's no stable mode to pin
+# a scale to.
 if [[ -s $pdir/scale ]]; then
   conf="$home/.config"
   install -d -m 700 -o "$user" -g "$user" "$conf" "$conf/bluefin-vm"

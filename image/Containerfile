@@ -67,9 +67,9 @@ RUN chmod 0755 /usr/libexec/bluefin-vm-provision /usr/bin/bluefin-vm-harden && \
 
 # 6. Display scale: provisioning stashes the profile's scale percentage in the
 #    account's home; this user oneshot applies it at first login by snapping to
-#    the nearest scale mutter reports for the live mode (the session bus is the
-#    only place those values exist -- apply-scale.py carries the rationale).
-#    Gated on the request file, so sessions without one skip at zero cost.
+#    the nearest scale mutter reports for the live mode -- the session bus is
+#    the only place those values exist. Gated on the request file, so sessions
+#    without one skip at zero cost.
 #    SuccessExitStatus=75 (EX_TEMPFAIL) keeps a transient retry quiet while a
 #    real error still marks the unit failed. The import check fails the build
 #    if the base image ever stops shipping PyGObject.

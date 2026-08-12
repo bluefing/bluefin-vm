@@ -21,7 +21,9 @@ the request was invalid or refused (the request is consumed), and
 next login to retry. The unit treats ``EX_TEMPFAIL`` as success so retries
 stay quiet while real errors mark it failed. One exception: a missing
 PyGObject exits 1 but keeps the request, so the broken image stays visible
-and a repaired one can still apply it.
+and a repaired one can still apply it. Anything unanticipated propagates --
+a traceback, a failed unit, and a kept request -- rather than being folded
+into these codes.
 """
 
 from __future__ import annotations
@@ -382,6 +384,9 @@ def main() -> int:
         try:
             apply_temporary(proxy, serial, logical_monitors[0], mode, scale)
         except GLib.Error as e:
+            # Treated as permanent: only members of the just-reported set are
+            # ever transmitted, so a refusal means something systematic --
+            # consuming keeps it from becoming a silent every-login retry.
             log.error(
                 "ApplyMonitorsConfig refused: %s; rejecting the request", e.message
             )
