@@ -19,7 +19,9 @@ Exits with 0 when the scale was applied or there was nothing to do, 1 when
 the request was invalid or refused (the request is consumed), and
 ``EX_TEMPFAIL`` when a transient failure left the request in place for the
 next login to retry. The unit treats ``EX_TEMPFAIL`` as success so retries
-stay quiet while real errors mark it failed.
+stay quiet while real errors mark it failed. One exception: a missing
+PyGObject exits 1 but keeps the request, so the broken image stays visible
+and a repaired one can still apply it.
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ import sys
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
+from xml.sax.saxutils import escape
 
 # PyGObject is a guest-only dependency (the image build asserts it). The pure
 # functions below are imported by host-side tests where gi is absent, so its
@@ -212,10 +215,10 @@ def monitors_xml(mode: Mode, scale: float) -> str:
       <primary>yes</primary>
       <monitor>
         <monitorspec>
-          <connector>{mode.connector}</connector>
-          <vendor>{mode.vendor}</vendor>
-          <product>{mode.product}</product>
-          <serial>{mode.serial}</serial>
+          <connector>{escape(mode.connector)}</connector>
+          <vendor>{escape(mode.vendor)}</vendor>
+          <product>{escape(mode.product)}</product>
+          <serial>{escape(mode.serial)}</serial>
         </monitorspec>
         <mode>
           <width>{mode.width}</width>
@@ -321,6 +324,9 @@ def main() -> int:
         return 1
 
     if Gio is None:
+        # Kept, not consumed: a broken image should stay visible (the unit
+        # fails each login), and once a repaired image arrives the request is
+        # still there to apply.
         log.error("PyGObject is unavailable; the image build should have caught this")
         return 1
 
@@ -334,6 +340,9 @@ def main() -> int:
         return os.EX_TEMPFAIL
 
     serial, monitors, logical_monitors, _ = state
+    if not logical_monitors:
+        log.warning("no logical monitors yet; keeping the request for the next login")
+        return os.EX_TEMPFAIL
     try:
         mode = current_mode(monitors)
     except ValueError as e:

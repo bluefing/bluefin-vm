@@ -57,8 +57,10 @@ else
 fi
 
 section "summary"
+# An empty Result means systemctl itself failed (no user bus, unit missing);
+# "could not verify" must fail, not pass.
 result=$(systemctl --user show "$unit" -p Result --value)
-if [[ $fail -eq 0 && ($result == "success" || -z $result) ]]; then
+if [[ $fail -eq 0 && $result == "success" ]]; then
   echo "  PASS"
 else
   echo "  FAIL"

@@ -147,3 +147,22 @@ def test_monitors_xml_renders_mutters_own_format():
     assert "<connector>Virtual-1</connector>" in xml
     assert "<width>2048</width>" in xml
     assert "<height>1152</height>" in xml
+
+
+def test_monitors_xml_escapes_reserved_characters():
+    # A virtio display reports plain names, but a monitor spec is EDID data --
+    # reserved characters must not produce invalid XML mutter then ignores.
+    mode = apply_scale.Mode(
+        "Virtual-1",
+        "A&B",
+        "<Bad Product>",
+        "unknown",
+        "2048x1152@60.000",
+        2048,
+        1152,
+        60.0,
+        [1.0],
+    )
+    xml = apply_scale.monitors_xml(mode, 1.0)
+    assert "<vendor>A&amp;B</vendor>" in xml
+    assert "<product>&lt;Bad Product&gt;</product>" in xml
