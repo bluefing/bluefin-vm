@@ -17,11 +17,19 @@ mod build '.just/build'
 [group('docs')]
 mod docs '.just/docs'
 
-# First-time setup after cloning: install the git hooks (pre-commit, commit-msg,
-# pre-push). Needs pre-commit itself (brew install pre-commit).
-[doc('Install the git hooks -- run once after cloning')]
+# The pinned project tooling from mise.toml (just, bats, pre-commit, uv, ...).
+# A no-op once installed.
+[doc('Install the pinned project tooling (mise.toml)')]
 [group('setup')]
-setup:
+tools:
+  mise install
+
+# First-time setup after cloning: the pinned tooling, then the git hooks
+# (pre-commit, commit-msg, pre-push). Needs just itself to run -- `mise install`
+# provides it for a shell that only has mise.
+[doc('First-time setup: pinned tooling + git hooks -- run once after cloning')]
+[group('setup')]
+setup: tools
   pre-commit install
 
 # Tier 0: Rust unit tests, offline bats contracts, guest-script pytest -- fast, no deps

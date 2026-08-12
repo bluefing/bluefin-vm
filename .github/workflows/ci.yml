@@ -2,9 +2,10 @@ name: CI
 
 # The same gate the local hooks run, but authoritative: it can't be bypassed
 # with `--no-verify` or skipped by a rebase. Runs the full pre-commit suite on
-# every push and PR. shellcheck/shfmt/hadolint are pinned by pre-commit itself,
-# and the Rust toolchain by rust-toolchain.toml, so CI and local are identical
-# -- no version skew. Arch-independent; only the image build needs an ARM runner.
+# every push and PR. Every layer is pinned so CI and local are identical:
+# mise.toml holds the runner tools (just, bats, pre-commit, ...), pre-commit's
+# hook envs hold the linters, and rust-toolchain.toml holds Rust.
+# Arch-independent; only the image build needs an ARM runner.
 
 on:
   push:
@@ -20,16 +21,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: extractions/setup-just@v2
-
-      # bats is the only hook tool pre-commit doesn't manage; shellcheck/shfmt/
-      # hadolint come as pinned pre-commit environments, and Rust from
-      # rust-toolchain.toml (auto-installed on first cargo use).
-      - name: Install bats
-        run: sudo apt-get update && sudo apt-get install -y bats
-
-      - name: Install pre-commit
-        run: pipx install pre-commit
+      # The pinned runner tools from mise.toml -- the same set `mise install`
+      # gives a dev machine, so there is no version skew at this layer either.
+      - name: Install the pinned project tooling
+        uses: jdx/mise-action@v2
 
       # The hook environments are rebuilt only when the config changes;
       # otherwise they come from cache. That speeds the gate up and stops a

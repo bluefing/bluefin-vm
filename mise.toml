@@ -1,0 +1,13 @@
+# Project tooling, pinned. This is the runner layer: the tools the recipes and
+# CI invoke directly. The layers below pin themselves -- pre-commit's hook envs
+# hold the linters and test runners, rust-toolchain.toml holds Rust -- and the
+# layer above (tart, docker) is end-user machine software, not project tooling.
+# Bootstrap a machine with `mise install`; CI installs the same set via
+# jdx/mise-action, so local and CI agree at every layer.
+[tools]
+just = "1.58.0"
+bats = "1.14.0"
+pre-commit = "4.6.2"
+gh = "2.97.0"
+python = "3.14.7"
+uv = "0.12.3"
