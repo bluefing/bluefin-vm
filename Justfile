@@ -24,10 +24,11 @@ mod docs '.just/docs'
 setup:
   pre-commit install
 
-# Tier 0: the cli's Rust unit tests + the offline bats contracts -- fast, no deps
+# Tier 0: Rust unit tests, offline bats contracts, guest-script pytest -- fast, no deps
 [group('test')]
 test: cli::test
   bats tests/offline
+  pre-commit run pytest --all-files
 
 # Tier 1: run provision.sh in a container across the config matrix (needs docker)
 [group('test')]
@@ -36,7 +37,9 @@ test-integration:
 
 # Tier 2: the guest smoke test in a running VM (run `just tart up` first)
 [group('test')]
-test-e2e: tart::smoke
+[arg('user', long, short)]
+[arg('name', long, short)]
+test-e2e name="Bluefin" user="$USER": (tart::smoke name user) (tart::check-scale name user)
 
 # Run all pre-commit hooks on all files (shellcheck, shfmt, yaml, tests, ...)
 [group('test')]

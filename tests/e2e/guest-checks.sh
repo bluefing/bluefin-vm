@@ -10,6 +10,8 @@
 #
 # Delivery: the script reaches the guest via the shared folder itself
 # (host ~/bluefin-share -> guest ~/Shared), so:  bash ~/Shared/guest-checks.sh
+# No -e: this is a report script -- a failing check is collected into the
+# summary, not aborted on (the repo's action scripts keep -euo pipefail).
 set -uo pipefail
 
 share="$HOME/Shared"

@@ -6,6 +6,7 @@
 #   EXPECT_KEY 0|1            authorized_keys installed (default 1)
 #   EXPECT_PASSWORDLESS_SUDO 0|1   (default 0)
 #   EXPECT_SSH_PASSWORD 0|1        (default 1)
+#   EXPECT_SCALE              expected scale-request content (default: none staged)
 #   BLUEFIN_VM_PDIR           if set, assert the share sub-dir was cleared
 set -euo pipefail
 
@@ -80,6 +81,30 @@ else
   else
     fail "ssh-password drop-in missing/wrong"
   fi
+fi
+
+# The scale hand-off: provisioning stages the requested percentage into the
+# account's config for the first-login oneshot; applying it needs a session,
+# so only the staging is assertable here.
+req="$home/.config/bluefin-vm/scale-request"
+if [[ -n "${EXPECT_SCALE:-}" ]]; then
+  if [[ -f "$req" && "$(cat "$req")" == "$EXPECT_SCALE" ]]; then
+    pass "scale-request staged ($EXPECT_SCALE)"
+  else
+    fail "scale-request missing or wrong content"
+  fi
+  if [[ -f "$req" && "$(stat -c '%a' "$req")" == 644 ]]; then
+    pass "scale-request mode 644"
+  else
+    fail "scale-request wrong mode"
+  fi
+  if [[ -f "$req" && "$(stat -c '%U' "$req")" == "$user" ]]; then
+    pass "scale-request owned by $user"
+  else
+    fail "scale-request wrong owner"
+  fi
+else
+  if [[ ! -e "$req" ]]; then pass "no scale-request"; else fail "unexpected scale-request"; fi
 fi
 
 if [[ -n "${BLUEFIN_VM_PDIR:-}" ]]; then

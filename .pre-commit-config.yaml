@@ -22,6 +22,7 @@ repos:
       - id: check-merge-conflict
         stages: [pre-commit, pre-push]   # rebases can leave markers behind
       - id: check-yaml            # validates the GitHub Actions workflows
+      - id: check-toml            # validates config.toml and the Cargo/docs toml
       - id: check-executables-have-shebangs
       - id: check-shebang-scripts-are-executable
       - id: check-added-large-files
@@ -51,9 +52,9 @@ repos:
         types: [file]
         stages: [pre-commit, pre-push]
 
-  # Python lint + format for the guest helper scripts (image/*.py) -- ruff,
-  # pinned like the linters above. ruff-check validates (commit + push, no
-  # mutation); ruff-format is the commit-only fixer, matching shfmt.
+  # Python lint + format for the guest helper scripts (image/*.py) and their
+  # tests -- ruff, pinned like the linters above. ruff-check validates (commit
+  # + push, no mutation); ruff-format is the commit-only fixer, matching shfmt.
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.1
     hooks:
@@ -61,12 +62,37 @@ repos:
         stages: [pre-commit, pre-push]
       - id: ruff-format
 
+  # Python type checking -- ruff lints style and idiom but does no type
+  # inference, so defects like attribute access on an Optional pass it.
+  # pytest is here so the test suite's import resolves; gi has no usable
+  # stubs (PyGObject-stubs drags in a native PyGObject build), so the guest
+  # script types it as Any for the checker.
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.411
+    hooks:
+      - id: pyright
+        additional_dependencies: ["pytest==8.4.1"]
+        stages: [pre-commit, pre-push]
+
   - repo: local
     hooks:
       - id: tests
         name: bats test suite
         entry: bats tests/offline
         language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit, pre-push]
+
+      # Python unit tests for the guest helper scripts. language: python makes
+      # pre-commit build the hook venv with the pinned pytest below, so the
+      # runner is identical locally and in CI and nothing is assumed on the
+      # host -- the same reasoning as the pinned linters above.
+      - id: pytest
+        name: pytest (guest helper unit tests)
+        entry: pytest -q tests/offline
+        language: python
+        additional_dependencies: ["pytest==8.4.1"]
         pass_filenames: false
         always_run: true
         stages: [pre-commit, pre-push]

@@ -25,8 +25,9 @@ pub struct Provision {
     /// Allow ssh password login; default `true` (as the base image ships).
     /// `false` writes an sshd drop-in disabling it.
     pub ssh_password_auth: bool,
-    /// Guest desktop scale percentage (100 or 200); `None` leaves GNOME's
-    /// own default alone.
+    /// Guest desktop scale target as a percentage; the guest snaps it to the
+    /// nearest scale the display supports. `None` leaves GNOME's own default
+    /// alone.
     pub scale: Option<u32>,
 }
 

@@ -231,7 +231,7 @@ impl Form {
                 label: "Scale",
                 accent: A_SCALE,
                 hint:
-                    "guest desktop scale, applied at first boot (needs Refit off) -- ←/→ to choose"
+                    "guest scale target, snapped to the nearest the display supports (needs Refit off) -- ←/→"
                         .into(),
                 input: scale_choice(resources.and_then(|r| r.scale)),
             },
@@ -477,9 +477,10 @@ fn ssh_choice(keys: &[PathBuf], saved: Option<&SshKey>) -> Input {
 }
 
 /// Build the scale choice: GNOME's standard fractional ladder -- 100% (its own
-/// default), 125, 150, 175, 200. Every non-default step is applied at first
-/// boot via `monitors.xml`; the fractional steps work the same as the integer
-/// 200%. Keeps any other saved value so re-opening never drops it.
+/// default), 125, 150, 175, 200. The value is a target: at first login the
+/// guest snaps it to the nearest scale mutter supports for the live mode
+/// (which steps exist varies per resolution). Keeps any other saved value so
+/// re-opening never drops it.
 fn scale_choice(saved: Option<u32>) -> Input {
     let mut options = vec![Opt {
         label: "100% (default)".into(),

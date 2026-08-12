@@ -61,6 +61,11 @@ run_case() {
   [ "$status" -eq 0 ]
 }
 
+@test "scale request is staged into the account's config" {
+  run run_case -e CASE_USER=usera -e CASE_SCALE=150
+  [ "$status" -eq 0 ]
+}
+
 @test "invalid username: provision.sh refuses before creating anything" {
   run run_case -e CASE_USER='Bad!'
   [ "$status" -ne 0 ]
