@@ -120,6 +120,23 @@ smoke name=default_name user='bluefin':
   fi
   exit "$guest_rc"
 
+# Check display-scale provisioning in a running VM: deliver
+# tests/e2e/check-scale.sh through the share and run it over ssh -- unit
+# state, journal, request/monitors.xml files, live display state. Defaults to
+# your host account (the one provisioning creates); pass --user/-u for
+# another. The VM must be up with the share attached and the user logged in
+# (the checks read the user session's units and bus).
+[doc('Check display-scale provisioning in a running VM (unit, journal, monitors.xml)')]
+[arg('user', long, short)]
+[no-cd]
+[group('lifecycle')]
+check-scale name=default_name user='$USER':
+  mkdir -p "{{default_share}}"
+  cp tests/e2e/check-scale.sh "{{default_share}}/"
+  ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+    "{{user}}@$(just tart ip "{{name}}")" \
+    "bash ~/Shared/check-scale.sh"
+
 # Stop a running Tart VM
 [group('lifecycle')]
 stop name=default_name:

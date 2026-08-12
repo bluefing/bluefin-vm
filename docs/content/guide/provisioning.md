@@ -8,5 +8,6 @@
 
 At first boot a downloaded disk provisions your account from details the host
 wrote to the durable share: it creates the user in `wheel`, installs your ssh
-public key, sets the login password, and applies your chosen display scale. With
-no details present the step is skipped and the baked test login stays the way in.
+public key, and sets the login password; your chosen display scale is applied at
+first login, snapped to the nearest value the guest display supports. With no
+details present the step is skipped and the baked test login stays the way in.

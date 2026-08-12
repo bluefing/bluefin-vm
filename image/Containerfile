@@ -64,3 +64,19 @@ RUN chmod 0755 /usr/libexec/bluefin-vm-provision /usr/bin/bluefin-vm-harden && \
       > /usr/lib/systemd/system/bluefin-vm-provision.service && \
     ln -s ../bluefin-vm-provision.service \
       /usr/lib/systemd/system/multi-user.target.wants/bluefin-vm-provision.service
+
+# 6. Display scale: provisioning stashes the profile's scale percentage in the
+#    account's home; this user oneshot applies it at first login by snapping to
+#    the nearest scale mutter reports for the live mode (the session bus is the
+#    only place those values exist -- apply-scale.py carries the rationale).
+#    Gated on the request file, so sessions without one skip at zero cost.
+#    SuccessExitStatus=75 (EX_TEMPFAIL) keeps a transient retry quiet while a
+#    real error still marks the unit failed. The import check fails the build
+#    if the base image ever stops shipping PyGObject.
+COPY apply-scale.py /usr/libexec/bluefin-vm-apply-scale
+RUN chmod 0755 /usr/libexec/bluefin-vm-apply-scale && \
+    python3 -c 'import gi' && \
+    printf '[Unit]\nDescription=Apply the provisioned display scale (bluefin-vm)\nConditionPathExists=%%h/.config/bluefin-vm/scale-request\nAfter=graphical-session.target\nPartOf=graphical-session.target\n\n[Service]\nType=oneshot\nExecStart=/usr/libexec/bluefin-vm-apply-scale\nSuccessExitStatus=75\n' \
+      > /usr/lib/systemd/user/bluefin-vm-apply-scale.service && \
+    ln -s ../bluefin-vm-apply-scale.service \
+      /usr/lib/systemd/user/graphical-session.target.wants/bluefin-vm-apply-scale.service

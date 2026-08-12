@@ -87,8 +87,8 @@ pub struct Share {
 /// Hardware sizing handed to Tart, plus the guest display scale. `scale` is
 /// the odd one out: Linux scanout is raw pixels (no `tart set` equivalent of
 /// macOS's HiDPI points -- see docs/content/just/tart.md), so it isn't handed to
-/// Tart at all. It's applied by first-boot provisioning instead, like the
-/// account fields.
+/// Tart at all. Provisioning hands it to the guest, which applies it at first
+/// login.
 ///
 /// `refit` and `display`/`scale` are mutually exclusive by design: with refit
 /// on (the default) Tart continuously resizes the guest to the window, so a
@@ -104,7 +104,8 @@ pub struct Resources {
     pub memory_mib: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display: Option<String>,
-    /// Guest desktop scale as a percentage (100 or 200); `None` leaves
+    /// Guest desktop scale target as a percentage (e.g. 150); the guest snaps
+    /// it to the nearest scale the display supports. `None` leaves
     /// GNOME's own default alone.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scale: Option<u32>,

@@ -88,15 +88,17 @@ modes, chosen by the **Refit** toggle in `bluefin-vm setup`:
   here, switch the *host* to a denser mode and fullscreen — the cost is the host
   mode is global, so macOS shrinks too.
 - **Refit off** — the guest runs at a fixed `--display` resolution, and the
-  guest desktop scale you set (125–200%) is applied at first boot. This is what
-  makes a chosen resolution and scale stick.
+  guest desktop scale you set is applied at first login, snapped to the nearest
+  value the display supports. This is what makes a chosen resolution and scale
+  stick.
 
 The scale can't be handed to Tart (its HiDPI units are macOS-guest only; the
-Linux scanout is raw pixels, a Virtualisation.framework limitation), so
-first-boot provisioning applies it by writing GNOME's `~/.config/monitors.xml`.
-That file must name the exact mode including refresh rate, which is why it only
-works with refit off (a stable, known mode); `image/provision.sh` reads the
-live mode timing from DRM and computes the rate.
+Linux scanout is raw pixels, a Virtualisation.framework limitation), and the
+scales mutter accepts are per-mode values only its session API reports — so a
+guest oneshot applies the scale at first login by querying mutter and snapping
+to the nearest supported value (the internal display-scale design doc carries
+the detail). Scale needs a stable mode, which is why it only works with refit
+off.
 
 Resources (cpu, memory, display, scale, refit) come from the VM's saved profile,
 set with `bluefin-vm setup`; the built-in defaults are 4 vCPUs, 4096 MiB, a

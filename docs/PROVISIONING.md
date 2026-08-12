@@ -64,9 +64,11 @@ boot, when the host has left that directory in the share (detected by its
    drop-in[^sudo] granting `NOPASSWD`;
 5. if `disable-ssh-password` is present, write an `sshd_config.d` drop-in setting
    `PasswordAuthentication no` and reload sshd[^sshd];
-6. if a `scale` is set, write `~/.config/monitors.xml` at that scale for the
-   live display mode (read from DRM, refresh rate included, so mutter honours
-   it);
+6. if a `scale` is set, stash it in the account's home
+   (`~/.config/bluefin-vm/scale-request`); the `bluefin-vm-apply-scale` user
+   oneshot, gated on that file, applies it at first login by snapping to the
+   nearest scale mutter reports for the live mode — the accepted values are
+   per-mode and only the session-bus API knows them;
 7. delete `…/.bluefin-vm/`[^hygiene] — nothing sensitive lingers in the share.
 
 The unit is **gated** on that `username` file

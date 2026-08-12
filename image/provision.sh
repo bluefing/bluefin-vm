@@ -72,74 +72,18 @@ if [[ -e $pdir/disable-ssh-password ]]; then
   systemctl try-reload-or-restart sshd.service 2>/dev/null || true
 fi
 
-# Guest desktop scale, pre-seeded into monitors.xml before the session starts so
-# the desktop comes up already scaled -- gnome-shell only shows its "keep these
-# settings?" confirm-or-revert dialog for a *live* reconfiguration (gdctl, or
-# Settings), never for a session reading its own config at login. The host
-# writes the scale file only when the profile has refit off (a fixed
-# resolution); with refit on the guest mode follows the window, so there's no
-# stable mode to pin a scale to.
-#
-# mutter only honours a <logicalmonitor> whose <mode> exactly matches a real
-# mode of the connector -- width, height, AND refresh rate (verified: a mode
-# with the wrong rate, or no rate, is silently discarded and scale stays 1x).
-# The rate isn't in /sys/class/drm/*/modes (width x height only), so read the
-# active mode's timing from DRM debugfs and compute vrefresh = clock (kHz) /
-# (htotal * vtotal). The guest's virtio-gpu output is always connector
-# "Virtual-1" with no EDID. scale is a percentage (150, 200); GNOME wants a
-# factor (1.5, 2).
+# Guest desktop scale: hand the requested percentage to the user session. It
+# can't be applied here -- the scales mutter accepts are per-mode values only
+# its session-bus API reports (the design doc and apply-scale.py carry the
+# detail) -- so the bluefin-vm-apply-scale user oneshot, gated on this file,
+# snaps and applies it at first login. The host writes the scale file only
+# when the profile has refit off (a fixed resolution); with refit on the guest
+# mode follows the window, so there's no stable mode to pin a scale to.
 if [[ -s $pdir/scale ]]; then
-  pct=$(<"$pdir/scale")
-  factor=$(awk "BEGIN { printf \"%s\", $pct / 100 }")
-
-  # Parse the first `mode: "WxH": vref clock hdisp hss hse htotal vdisp ... vtotal`
-  # line: $2 is the WxH name, $3 the space-separated timing (f[3]=clock kHz,
-  # f[7]=htotal, f[11]=vtotal). Runs as root -- debugfs is root-only.
-  # `|| true`: read returns non-zero at EOF (no mode found -> empty input), which
-  # set -e would treat as fatal; the guard below handles the empty case instead.
-  read -r width height rate < <(
-    awk -F'"' '/mode: "/ {
-      split($2, wh, "x")
-      split($3, f, " ")
-      printf "%s %s %.3f\n", wh[1], wh[2], f[3] * 1000 / (f[7] * f[11])
-      exit
-    }' /sys/kernel/debug/dri/*/state 2>/dev/null
-  ) || true
-
-  if [[ -n $width && -n $height && -n $rate ]]; then
-    conf="$home/.config"
-    install -d -m 700 -o "$user" -g "$user" "$conf"
-    cat >"$conf/monitors.xml" <<EOF
-<monitors version="2">
-  <configuration>
-    <layoutmode>logical</layoutmode>
-    <logicalmonitor>
-      <x>0</x>
-      <y>0</y>
-      <scale>$factor</scale>
-      <primary>yes</primary>
-      <monitor>
-        <monitorspec>
-          <connector>Virtual-1</connector>
-          <vendor>unknown</vendor>
-          <product>unknown</product>
-          <serial>unknown</serial>
-        </monitorspec>
-        <mode>
-          <width>$width</width>
-          <height>$height</height>
-          <rate>$rate</rate>
-        </mode>
-      </monitor>
-    </logicalmonitor>
-  </configuration>
-</monitors>
-EOF
-    chown "$user:$user" "$conf/monitors.xml"
-    [[ -f /sys/fs/selinux/enforce ]] && restorecon -R "$conf"
-  else
-    echo "bluefin-vm-provision: could not read display mode from DRM; scale skipped" >&2
-  fi
+  conf="$home/.config"
+  install -d -m 700 -o "$user" -g "$user" "$conf" "$conf/bluefin-vm"
+  install -m 644 -o "$user" -g "$user" "$pdir/scale" "$conf/bluefin-vm/scale-request"
+  [[ -f /sys/fs/selinux/enforce ]] && restorecon -R "$conf"
 fi
 
 # Applied -- clear the details from the durable share. The host re-writes them
