@@ -66,3 +66,13 @@ check:
 [group('maintenance')]
 clean:
   cd cli && cargo clean
+
+# The cache holds one content-addressed disk per build (~/.cache/bluefin-vm/<sha>/),
+# so it grows by ~21 GiB each time `up` fetches a new build. Path mirrors the
+# CLI's default_work_dir ($BLUEFIN_VM_WORK_DIR overrides both) -- keep them in step.
+[doc('Purge the up download cache (~/.cache/bluefin-vm); next `up` re-downloads')]
+[no-cd]
+[confirm("Delete every cached VM disk image under ~/.cache/bluefin-vm? The next `up` re-downloads (~2.9 GiB). Continue?")]
+[group('maintenance')]
+purge-cache:
+  rm -rf "${BLUEFIN_VM_WORK_DIR:-$HOME/.cache/bluefin-vm}"

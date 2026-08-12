@@ -50,10 +50,11 @@ enum Command {
         /// Seed URL (defaults to the published seed).
         #[arg(long, default_value = DEFAULT_SEED_URL)]
         url: String,
-        /// Expected hex SHA-256 of the seed zip; fails the run if it mismatches.
+        /// Hex SHA-256 of the disk zip; also the cache key. Defaults to the
+        /// published `<url>.sha256`; a download mismatch fails the run.
         #[arg(long)]
         sha256: Option<String>,
-        /// Where to cache the seed zip and extracted disk.
+        /// Where to cache disk images (each build under its own checksum).
         #[arg(long)]
         work_dir: Option<PathBuf>,
         /// Host folder shared into the VM (durable tier).
@@ -201,12 +202,27 @@ fn up(
     std::fs::create_dir_all(&work_dir)
         .with_context(|| format!("creating work dir {}", work_dir.display()))?;
 
-    let seed = work_dir.join(seed_filename(url));
-    let outcome = download(url, &seed, expected)?;
-    report_download(&outcome, &seed);
+    // Content-address the extracted disk by the published zip checksum: each
+    // build has a distinct hash and lands in its own folder, so `up` can never
+    // reuse a stale disk (the size-only extract skip once served a six-week-old
+    // image). A cache hit is a single stat; the 65-byte `.sha256` sidecar tells
+    // us which build is current, and `--sha256` pins the key without the fetch.
+    let key = resolve_disk_key(url, expected)?;
+    let disk = disk_cache_path(&work_dir, &key);
 
-    let (disk, extract_outcome) = extract(&seed, &work_dir)?;
-    report_extract(&extract_outcome, &disk);
+    if disk.is_file() {
+        eprintln!("Using cached disk {} ({})", &key[..12], disk.display());
+    } else {
+        let zip = work_dir.join(format!("{key}.zip"));
+        let outcome = download(url, &zip, Some(key.as_str()))?;
+        report_download(&outcome, &zip);
+        let (extracted, extract_outcome) =
+            extract(&zip, disk.parent().expect("cache path has a parent"))?;
+        report_extract(&extract_outcome, &extracted);
+        // The content-addressed disk is all Tart needs; drop the 2.9 GB zip so
+        // the cache holds one artifact per build rather than the zip and disk both.
+        let _ = std::fs::remove_file(&zip);
+    }
 
     let mut config = core::config::Config::load()?;
 
@@ -330,14 +346,46 @@ fn report_download(outcome: &core::download::Outcome, path: &Path) {
     }
 }
 
-/// The seed's on-disk name, taken from the URL's last path segment (falling
-/// back to a sensible default if the URL has no usable tail).
-fn seed_filename(url: &str) -> String {
-    url.rsplit('/')
-        .find(|s| !s.is_empty())
-        .filter(|s| s.ends_with(".zip"))
-        .unwrap_or("bluefin-vm-seed.zip")
-        .to_string()
+/// The cache key for the disk: the SHA-256 of the published zip. Prefer an
+/// explicit `--sha256`; otherwise read the `<url>.sha256` sidecar published
+/// alongside the image. Keying the cache on this is what stops a new build from
+/// reusing an old extracted disk.
+fn resolve_disk_key(url: &str, flag: Option<&str>) -> Result<String> {
+    let raw = match flag {
+        Some(h) => h.to_string(),
+        None => {
+            let sidecar = format!("{url}.sha256");
+            core::download::fetch_text(&sidecar)
+                .with_context(|| format!("fetching checksum {sidecar}"))?
+        }
+    };
+    parse_sha256(&raw).with_context(|| format!("resolving disk checksum for {url}"))
+}
+
+/// Parse a hex SHA-256 from a `--sha256` value or a `.sha256` file body,
+/// tolerating the `<hash>  <filename>` form and surrounding whitespace, and
+/// normalising to lowercase. Rejecting anything that isn't exactly 64 hex
+/// digits also guarantees the result is safe as a path segment (no separators
+/// or `..`), which `disk_cache_path` relies on.
+fn parse_sha256(raw: &str) -> Result<String> {
+    let hash = raw
+        .split_whitespace()
+        .next()
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()) {
+        Ok(hash)
+    } else {
+        anyhow::bail!("expected a 64-hex-digit sha256, got {raw:?}");
+    }
+}
+
+/// The cache location for a build's disk, content-addressed by the zip's
+/// SHA-256 (`work_dir/<hash>/disk.raw`). A different build has a different hash
+/// and thus a different path, so a stale disk is structurally impossible to
+/// reuse. `key` is a validated 64-hex digest (see `parse_sha256`).
+fn disk_cache_path(work_dir: &Path, key: &str) -> PathBuf {
+    work_dir.join(key).join("disk.raw")
 }
 
 fn home() -> PathBuf {
@@ -448,19 +496,46 @@ fn resolve_account(
 
 #[cfg(test)]
 mod tests {
-    use super::seed_filename;
+    use super::{disk_cache_path, parse_sha256};
+    use std::path::Path;
+
+    const A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const B: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
     #[test]
-    fn seed_filename_uses_the_url_tail() {
+    fn parse_sha256_accepts_bare_and_sidecar_forms() {
+        // A bare hash, upper-cased and padded with whitespace, normalises down.
         assert_eq!(
-            seed_filename("https://projectbluefin.dev/bluefin-vm-raw-arm64.zip"),
-            "bluefin-vm-raw-arm64.zip"
+            parse_sha256(&format!("  {}\n", A.to_uppercase())).unwrap(),
+            A
         );
+        // The `sha256sum` two-column form: take the first token, drop the name.
+        assert_eq!(parse_sha256(&format!("{A}  disk.zip\n")).unwrap(), A);
     }
 
     #[test]
-    fn seed_filename_falls_back_when_no_zip_tail() {
-        assert_eq!(seed_filename("https://example.com/"), "bluefin-vm-seed.zip");
-        assert_eq!(seed_filename("no-slashes"), "bluefin-vm-seed.zip");
+    fn parse_sha256_rejects_non_hex_and_wrong_length() {
+        for bad in [
+            "",
+            "deadbeef",
+            &"z".repeat(64),
+            &"a".repeat(63),
+            &"a".repeat(65),
+        ] {
+            assert!(parse_sha256(bad).is_err(), "{bad:?} should be rejected");
+        }
+    }
+
+    #[test]
+    fn a_changed_hash_yields_a_different_cache_path() {
+        // The regression guard: a new build (new hash) can never resolve to the
+        // same disk as an old one, so a stale disk is impossible to reuse.
+        let work = Path::new("/cache");
+        assert_ne!(disk_cache_path(work, A), disk_cache_path(work, B));
+        assert_eq!(disk_cache_path(work, A), disk_cache_path(work, A));
+        assert_eq!(
+            disk_cache_path(work, A),
+            Path::new("/cache").join(A).join("disk.raw")
+        );
     }
 }

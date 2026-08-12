@@ -122,6 +122,28 @@ pub fn verify(path: &Path, expected: &str) -> Result<()> {
     Ok(())
 }
 
+/// Fetch a small text resource in one GET -- e.g. the published `.sha256`
+/// sidecar. No resume or progress: the whole (capped) body is read into a
+/// String. For metadata only, never the multi-GiB disk.
+pub fn fetch_text(url: &str) -> Result<String> {
+    let resp = ureq::get(url)
+        .call()
+        .map_err(|e| anyhow::Error::new(e).context("HTTP request failed"))?;
+    let status = resp.status();
+    if !status.is_success() {
+        bail!("server returned {status}");
+    }
+    let mut body = String::new();
+    // Cap the read: a checksum sidecar is tens of bytes; a huge body means a
+    // wrong URL, not a checksum.
+    resp.into_body()
+        .into_reader()
+        .take(64 * 1024)
+        .read_to_string(&mut body)
+        .context("reading response body")?;
+    Ok(body)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

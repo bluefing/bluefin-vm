@@ -44,10 +44,21 @@ default rather than only on `--sha256`. Fits the `bv config` work.
 "seed" is non-standard for the downloadable prebuilt disk and doesn't land with a
 cloud-native audience (they read it as database/torrent/terraform seeding). New
 content already uses `image`/`disk image`; the legacy term still spans ~54 spots
-(`DEFAULT_SEED_URL`, `seed_filename`, `core/extract.rs`, `core/mod.rs`, tests,
+(`DEFAULT_SEED_URL`, `core/extract.rs`, `core/mod.rs`, tests,
 comments). Rename them in one mechanical pass, keeping the artifact filename
 (`bluefin-vm-raw-arm64.zip`) unchanged. Say "disk image" where it could be
 confused with the bootc container image.
+
+### Warn when the share is the home directory
+
+The share is mounted into the VM as `bluefin-share`, so a profile with
+`share.directory = "~/"` exposes the user's entire `$HOME` to the guest. The
+built-in default is already `~/bluefin-share`, but nothing stops the TUI/config
+being set to `~/` (or another broad path), and provisioning then writes its
+flags to `~/.bluefin-vm` rather than the dedicated share. Warn (or refuse) when
+the resolved share is `$HOME` or an ancestor of it, and keep the TUI default at
+`~/bluefin-share`. Surfaced during content-addressed-cache testing, where `up`
+reported `Share: /Users/<user>`.
 
 ## TUI as a control surface
 
@@ -131,6 +142,18 @@ One enabler: make `provision.sh`'s `pdir` overridable
 (`pdir="${BLUEFIN_VM_PDIR:-/var/mnt/…}"`) so a test needn't write under
 `/var/mnt`. Start Tier 1 on a `fedora` container; add a Bluefin-base variant for
 the nightly.
+
+## Host download cache
+
+### Prune old content-addressed builds
+
+`up` caches each build's disk at `~/.cache/bluefin-vm/<zip-sha256>/disk.raw`, so
+every new upstream build adds ~21 GiB and older ones linger. `just
+cli::purge-cache` clears the whole cache, but nothing drops only the stale
+builds. Add a prune that keeps the current build (the sha the published
+`.sha256` resolves to) and removes the rest -- a `--prune` on `up`, or a
+`cli::prune-cache` recipe. Needs the CLI to expose the current key, so it pairs
+with the cache-path / `bv config` work.
 
 ## Disk size
 
