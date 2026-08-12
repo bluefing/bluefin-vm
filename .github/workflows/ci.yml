@@ -31,5 +31,16 @@ jobs:
       - name: Install pre-commit
         run: pipx install pre-commit
 
+      # The hook environments are rebuilt only when the config changes;
+      # otherwise they come from cache. That speeds the gate up and stops a
+      # flaky binary download (shellcheck/shfmt/hadolint/pyright fetch theirs
+      # at env-install time) from failing an unrelated run.
+      - name: Cache the pre-commit environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: pre-commit-
+
       - name: Run the pre-commit gate
         run: pre-commit run --all-files --show-diff-on-failure
