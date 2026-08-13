@@ -225,11 +225,19 @@ fn up(
     replace: bool,
 ) -> Result<()> {
     if core::tart::exists(name) && !replace {
+        // Provisioning only happens on a fresh VM, so flags that ask for it
+        // must fail loudly here -- silently ignoring them would look applied.
+        if provision.user.is_some() || provision.ssh_key.is_some() || no_provision {
+            anyhow::bail!(
+                "VM '{name}' already exists; --user/--ssh-key/--no-provision only apply \
+                 to a fresh VM (bluefin-vm up --replace)"
+            );
+        }
         let config = core::config::Config::load()?;
         let (share, read_only) = resolve_share(&config, name, share);
         eprintln!(
             "VM '{name}' already exists — booting it. Profile changes do not apply to \
-             an existing VM (apply them to a fresh one: up --replace)."
+             an existing VM (apply them to a fresh one: bluefin-vm up --replace)."
         );
         let log = std::env::temp_dir().join(format!("tart-{name}.log"));
         core::tart::run_detached(name, &share, read_only, &log, Duration::from_secs(3))?;

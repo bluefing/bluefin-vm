@@ -258,7 +258,8 @@ impl Form {
             Field {
                 label: "Up",
                 accent: A_USER,
-                hint: "save the profile and bring the VM up (boots an existing VM) -- Enter".into(),
+                hint: "save the profile and bring the VM up (boots an existing VM, creates a missing one) -- Enter"
+                    .into(),
                 input: Input::Button {
                     label: "▶ save & bring the VM up",
                 },
