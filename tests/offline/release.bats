@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # release.sh: argument handling and the refusals that do not depend on repo
-# state. The branch, cleanliness, sync, stamp and tag checks all read the
-# working repo, so asserting them here would make the suite's result depend
+# state. The branch, cleanliness, sync, crate-version and tag checks all read
+# the working repo, so asserting them here would make the suite's result depend
 # on whatever the developer happens to have checked out -- those are covered
 # by the script refusing loudly when they fail, not by these tests.
 
@@ -40,5 +40,6 @@ setup() {
   # The version is validated first, so a malformed one fails the same way
   # whatever branch or tree state the caller happens to be in.
   run ./bin/release.sh -n nonsense
+  [ "$status" -eq 1 ]
   [[ "$output" == *"not a bare semver"* ]]
 }
