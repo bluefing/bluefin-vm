@@ -151,6 +151,24 @@ One enabler: make `provision.sh`'s `pdir` overridable
 `/var/mnt`. Start Tier 1 on a `fedora` container; add a Bluefin-base variant for
 the nightly.
 
+## Build scripts
+
+### Use arrays for optional docker/podman flags
+
+`bin/build-image.sh` and `bin/build-disk.sh` build optional flags as strings
+(`build_arg`, `config_mount`, `tty`) and expand them unquoted so they split
+into zero or two words, which needs four `# shellcheck disable=SC2086`
+comments. The splitting also reaches inside the value: `config_mount` embeds
+`$(pwd)`, so a repository path containing a space breaks the mount. Bash
+arrays express the same thing without the disables:
+
+    config_mount=()
+    [ -f config.toml ] && config_mount=(-v "$(pwd)/config.toml:/config.toml:ro")
+    run_cmd podman run --rm "${config_mount[@]}" ...
+
+Both scripts are already `#!/usr/bin/env bash`. `tty` has the same shape and
+should move with them.
+
 ## Release
 
 ### Check the packaged binary's architecture
