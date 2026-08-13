@@ -19,8 +19,9 @@ the convenience around it:
 
 It's aimed at Bluefin users and developers who are already comfortable with
 cloud-native workflows — declarative config, ssh agents, tailscale. The
-[interactive setup](getting-started/install.md) exposes every choice but
-requires none: the defaults boot a working, personal VM.
+[interactive TUI](getting-started/install.md) exposes every choice but
+requires none: the defaults boot a working, personal VM. `up` creates the VM
+once and boots it thereafter — replacing it is an explicit choice.
 
 ## Status
 

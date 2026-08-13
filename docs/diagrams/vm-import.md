@@ -34,7 +34,7 @@ flowchart TD
     REFIT -- no --> SETOFF --> OUT
 ```
 
-Resources come solely from the VM's saved profile (`bluefin-vm setup`); the
+Resources come solely from the VM's saved profile (`bluefin-vm tui`); the
 built-in defaults are 4 vCPUs, 4096 MiB, a 1920×1200 display, and refit on.
 With refit on, `--display-refit` lets the guest resolution follow the Tart
 window; with it off, the display stays fixed, which is what lets a chosen

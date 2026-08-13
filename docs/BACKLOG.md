@@ -86,7 +86,7 @@ re-image it,
   - [ ] Log each gap as its own story.
 - **Notes:** Display-density and clipboard behaviour are documented in
   `docs/modules/tart.md`. Guest resolution and desktop scale are now
-  user-settable per VM via `bluefin-vm setup` (the Refit toggle, off = fixed
+  user-settable per VM via `bluefin-vm tui` (the Refit toggle, off = fixed
   resolution + scale applied at first boot); the audit should judge that
   against true fullscreen parity. Known gap: no suspend (BL-10).
 

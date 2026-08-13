@@ -42,7 +42,8 @@ struct ProvisionArgs {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Download, extract, import, provision, and start the VM (the whole pipeline).
+    /// Bring the VM up: boot it if it exists, otherwise download, import,
+    /// provision, and start it (--replace forces the fresh pipeline).
     Up {
         /// Tart VM name.
         #[arg(long, default_value = DEFAULT_VM_NAME)]
@@ -63,6 +64,9 @@ enum Command {
         /// Skip provisioning; boot the baked test login instead.
         #[arg(long)]
         no_provision: bool,
+        /// Replace an existing VM (destroys its state) instead of booting it.
+        #[arg(long)]
+        replace: bool,
         #[command(flatten)]
         provision: ProvisionArgs,
     },
@@ -108,7 +112,7 @@ enum Command {
         share: Option<PathBuf>,
     },
     /// Interactively edit a VM's saved profile (account, share, resources).
-    Setup {
+    Tui {
         /// Tart VM name -- the profile to edit.
         #[arg(long, default_value = DEFAULT_VM_NAME)]
         name: String,
@@ -124,6 +128,7 @@ fn main() -> Result<()> {
             work_dir,
             share,
             no_provision,
+            replace,
             provision,
         } => up(
             &name,
@@ -133,6 +138,7 @@ fn main() -> Result<()> {
             share,
             provision,
             no_provision,
+            replace,
         ),
         Command::Download { out, url, sha256 } => {
             let out = core::config::expand_tilde(out);
@@ -153,7 +159,7 @@ fn main() -> Result<()> {
             let config = core::config::Config::load()?;
             let spec =
                 core::tart::VmSpec::resolve(&name, config.profile(&name).map(|p| &p.resources));
-            core::tart::import(&disk, &spec)?;
+            core::tart::import(&disk, &spec, true)?;
             eprintln!("Imported.");
             Ok(())
         }
@@ -182,12 +188,32 @@ fn main() -> Result<()> {
             );
             Ok(())
         }
-        Command::Setup { name } => tui::run(&name),
+        Command::Tui { name } => match tui::run(&name)? {
+            // The Up button runs the same pipeline as `bluefin-vm up`, with
+            // the saved profile supplying every choice -- one verb, two front
+            // ends. An existing VM keeps its state and simply boots.
+            tui::Outcome::Up => up(
+                &name,
+                DEFAULT_SEED_URL,
+                None,
+                None,
+                None,
+                ProvisionArgs {
+                    user: None,
+                    ssh_key: None,
+                },
+                false,
+                false,
+            ),
+            tui::Outcome::Saved | tui::Outcome::Cancelled => Ok(()),
+        },
     }
 }
 
-/// The full pipeline: fetch the seed, unpack its disk, import it, provision the
-/// first-boot account, and start the VM.
+/// Bring the VM up. An existing VM holds the user's state, so it simply
+/// boots; the full pipeline -- fetch the seed, unpack its disk, import it,
+/// provision the first-boot account, start it -- runs when the VM is missing
+/// or `--replace` asks for a fresh one by name.
 #[allow(clippy::too_many_arguments)]
 fn up(
     name: &str,
@@ -197,7 +223,34 @@ fn up(
     share: Option<PathBuf>,
     provision: ProvisionArgs,
     no_provision: bool,
+    replace: bool,
 ) -> Result<()> {
+    if core::tart::exists(name) && !replace {
+        // Provisioning only happens on a fresh VM, so flags that ask for it
+        // must fail loudly here -- silently ignoring them would look applied.
+        if provision.user.is_some() || provision.ssh_key.is_some() || no_provision {
+            anyhow::bail!(
+                "VM '{name}' already exists; --user/--ssh-key/--no-provision only apply \
+                 to a fresh VM (bluefin-vm up --replace)"
+            );
+        }
+        let config = core::config::Config::load()?;
+        let (share, read_only) = resolve_share(&config, name, share);
+        eprintln!(
+            "VM '{name}' already exists — booting it. Account and resource changes do \
+             not apply to an existing VM (apply them to a fresh one: bluefin-vm up \
+             --replace); the share settings apply on every boot."
+        );
+        let log = std::env::temp_dir().join(format!("tart-{name}.log"));
+        core::tart::run_detached(name, &share, read_only, &log, Duration::from_secs(3))?;
+        eprintln!(
+            "VM '{name}' running detached (window open). Log: {}",
+            log.display()
+        );
+        eprintln!("Stop it:  tart stop {name}");
+        return Ok(());
+    }
+
     let work_dir = core::config::expand_tilde(work_dir.unwrap_or_else(default_work_dir));
     std::fs::create_dir_all(&work_dir)
         .with_context(|| format!("creating work dir {}", work_dir.display()))?;
@@ -225,22 +278,13 @@ fn up(
     }
 
     let mut config = core::config::Config::load()?;
-
-    // Share precedence mirrors resources: --share flag > profile > default.
-    // Read-only is profile-only (no flag yet).
-    let read_only = config
-        .profile(name)
-        .and_then(|p| p.share.read_only)
-        .unwrap_or(false);
-    let share = core::config::expand_tilde(
-        share
-            .or_else(|| config.profile(name).and_then(|p| p.share.directory.clone()))
-            .unwrap_or_else(default_share),
-    );
+    let (share, read_only) = resolve_share(&config, name, share);
 
     eprintln!("Importing into Tart VM '{name}'…");
     let spec = core::tart::VmSpec::resolve(name, config.profile(name).map(|p| &p.resources));
-    core::tart::import(&disk, &spec)?;
+    // The replace policy travels to the destructive moment: a VM created
+    // while the download ran must fail the import, never be deleted by it.
+    core::tart::import(&disk, &spec, replace)?;
 
     // Provision before boot: the guest oneshot reads the share on first boot.
     let provisioned = if no_provision {
@@ -406,6 +450,24 @@ fn default_share() -> PathBuf {
         .unwrap_or_else(|| home().join("bluefin-share"))
 }
 
+/// Resolve the share directory and read-only flag for `name` -- flag >
+/// profile > default; read-only is profile-only (no flag yet).
+fn resolve_share(
+    config: &core::config::Config,
+    name: &str,
+    flag: Option<PathBuf>,
+) -> (PathBuf, bool) {
+    let read_only = config
+        .profile(name)
+        .and_then(|p| p.share.read_only)
+        .unwrap_or(false);
+    let share = core::config::expand_tilde(
+        flag.or_else(|| config.profile(name).and_then(|p| p.share.directory.clone()))
+            .unwrap_or_else(default_share),
+    );
+    (share, read_only)
+}
+
 /// Default account name: the host's `$USER`, so the VM feels like the user's.
 fn default_username() -> Option<String> {
     std::env::var("USER").ok().filter(|s| !s.is_empty())
@@ -436,7 +498,7 @@ impl ProvisionArgs {
             .map(core::config::SshKey::Path)
             .or_else(|| saved.and_then(|a| a.ssh_key.clone()))
             .or_else(|| default_ssh_key().map(core::config::SshKey::Path));
-        // The sudo and ssh-password postures are profile-only (set via `setup`),
+        // The sudo and ssh-password postures are profile-only (set via `tui`),
         // like scale -- carry the saved values through so a CLI run preserves them.
         Ok(core::config::Account {
             user: Some(user),
@@ -478,7 +540,7 @@ fn provision_from(
 /// Resolve the account for `name` (flag > profile > default) and store it back
 /// into `config`, returning the provisioning data. The caller writes it to the
 /// share and persists `config`. Scale has no CLI flag -- it's profile-only,
-/// set via `bluefin-vm setup`.
+/// set via `bluefin-vm tui`.
 fn resolve_account(
     config: &mut core::config::Config,
     name: &str,

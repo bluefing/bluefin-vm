@@ -28,8 +28,11 @@ Brewfile installs and the trust details are in the
 
 ## Customising the VM
 
-`bluefin-vm up` uses sane defaults. To change the account, ssh key, CPU/memory,
-or display resolution and scale, run the interactive setup — it writes a per-VM
-profile that later commands reuse. See the
+`bluefin-vm up` uses sane defaults, creates the VM when it is missing, and
+simply boots it when it exists. To change the account, ssh key, CPU/memory,
+or display resolution and scale, run `bluefin-vm tui` — it writes a per-VM
+profile that later commands reuse. Account and resource changes take effect
+on a fresh VM (`bluefin-vm up --replace`); the share settings apply on every
+boot. See the
 [tool module](../just/cli.md) for what the CLI does and the
 [provisioning guide](../guide/provisioning.md) for what happens at first boot.

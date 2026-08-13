@@ -1,8 +1,9 @@
-//! Interactive `setup` form -- a ratatui front-end over `core::config`.
+//! Interactive `tui` form -- a ratatui front-end over `core::config`.
 //!
 //! Thin by design: it edits a VM's profile fields and writes them back through
-//! the same `Config` the CLI uses. No provisioning or Tart calls happen here;
-//! `up` consumes what this saves.
+//! the same `Config` the CLI uses. No provisioning or Tart calls happen here:
+//! the Up button just returns `Outcome::Up`, and the caller runs the same
+//! `up` pipeline the CLI verb does.
 //!
 //! Inputs are typed (text / number / pick-a-value / toggle) so the form can
 //! guide the user -- the ssh key is chosen from detected `~/.ssh/*.pub`, the
@@ -37,12 +38,14 @@ const F_MEM: usize = 7;
 const F_REFIT: usize = 8;
 const F_DISPLAY: usize = 9;
 const F_SCALE: usize = 10;
+const F_UP: usize = 11;
 
 // Panel groupings, expressed via the same field-index constants so reordering
 // or inserting a field can't desync a panel's range from the fields it shows.
 const ACCOUNT_FIELDS: std::ops::Range<usize> = F_USER..F_DIR;
 const SHARE_FIELDS: std::ops::Range<usize> = F_DIR..F_CPU;
 const RESOURCES_FIELDS: std::ops::Range<usize> = F_CPU..F_SCALE + 1;
+const ACTION_FIELDS: std::ops::Range<usize> = F_UP..F_UP + 1;
 
 // Lively per-field accents (material 300-ish palette).
 const A_USER: Color = Color::Rgb(0x4f, 0xc3, 0xf7); // light blue
@@ -82,6 +85,8 @@ enum Input {
     Choice { options: Vec<Opt>, selected: usize },
     /// On/off, flipped with space.
     Toggle { on: bool },
+    /// An action row: Enter on it saves and fires the action.
+    Button { label: &'static str },
 }
 
 struct Field {
@@ -99,23 +104,38 @@ struct Form {
     error: Option<String>,
 }
 
+/// How the form was closed; the caller acts on it.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Outcome {
+    /// Esc -- nothing saved.
+    Cancelled,
+    /// Enter on a field -- profile saved.
+    Saved,
+    /// Enter on the Up button -- profile saved; the caller runs `up`.
+    Up,
+}
+
 /// Open the form for VM `name`, editing its saved profile; save on confirm.
-pub fn run(name: &str) -> Result<()> {
+/// The caller dispatches on the returned `Outcome` (the TUI never runs the
+/// pipeline itself -- CLI and TUI drive the same `up`).
+pub fn run(name: &str) -> Result<Outcome> {
     let mut config = Config::load()?;
     let mut form = Form::build(name, config.profile(name), &detected_ssh_keys());
 
     let mut terminal = ratatui::init();
-    let saved = event_loop(&mut terminal, &mut form);
+    let outcome = event_loop(&mut terminal, &mut form);
     ratatui::restore();
 
-    if saved? {
-        form.apply_to(&mut config);
-        config.save()?;
-        eprintln!("Saved profile '{name}' to {}", Config::path()?.display());
-    } else {
-        eprintln!("Cancelled -- no changes saved.");
+    let outcome = outcome?;
+    match outcome {
+        Outcome::Cancelled => eprintln!("Cancelled -- no changes saved."),
+        Outcome::Saved | Outcome::Up => {
+            form.apply_to(&mut config);
+            config.save()?;
+            eprintln!("Saved profile '{name}' to {}", Config::path()?.display());
+        }
     }
-    Ok(())
+    Ok(outcome)
 }
 
 impl Form {
@@ -234,6 +254,15 @@ impl Form {
                     "guest scale target, snapped to the nearest the display supports (needs Refit off) -- ←/→"
                         .into(),
                 input: scale_choice(resources.and_then(|r| r.scale)),
+            },
+            Field {
+                label: "Up",
+                accent: A_USER,
+                hint: "save the profile and bring the VM up (boots an existing VM, creates a missing one) -- Enter"
+                    .into(),
+                input: Input::Button {
+                    label: "▶ save & bring the VM up",
+                },
             },
         ];
 
@@ -421,6 +450,7 @@ impl Form {
                     _ => {}
                 }
             }
+            Input::Button { .. } => {} // Enter is handled by the event loop
         }
     }
 }
@@ -588,8 +618,9 @@ fn mem_hint(gib_max: u32) -> String {
     }
 }
 
-/// Returns `Ok(true)` on save (Enter, if valid), `Ok(false)` on cancel (Esc).
-fn event_loop(terminal: &mut DefaultTerminal, form: &mut Form) -> Result<bool> {
+/// Returns the close `Outcome`: Esc cancels; Enter saves (if valid), from the
+/// Up button as `Outcome::Up`.
+fn event_loop(terminal: &mut DefaultTerminal, form: &mut Form) -> Result<Outcome> {
     let start = Instant::now();
     let tick = Duration::from_millis(80);
     loop {
@@ -610,14 +641,19 @@ fn event_loop(terminal: &mut DefaultTerminal, form: &mut Form) -> Result<bool> {
         }
         form.error = None; // any keypress clears a stale validation error
         match key.code {
-            KeyCode::Esc => return Ok(false),
+            KeyCode::Esc => return Ok(Outcome::Cancelled),
             KeyCode::Enter => match form.validate() {
                 Ok(()) => {
+                    let up = form.selected == F_UP;
                     // Green confirmation flash before the terminal is restored.
                     // Polling (rather than a blocking sleep) keeps redrawing and
                     // draining input for the flash's duration instead of
                     // freezing the last frame while ignoring the terminal.
-                    let msg = format!("✓ saved profile '{}'", form.name);
+                    let msg = if up {
+                        format!("✓ saved profile '{}' — bringing the VM up…", form.name)
+                    } else {
+                        format!("✓ saved profile '{}'", form.name)
+                    };
                     let flash_until = Instant::now() + Duration::from_millis(320);
                     loop {
                         let phase = start.elapsed().as_millis() as u64;
@@ -632,7 +668,7 @@ fn event_loop(terminal: &mut DefaultTerminal, form: &mut Form) -> Result<bool> {
                             event::read().context("reading input")?;
                         }
                     }
-                    return Ok(true);
+                    return Ok(if up { Outcome::Up } else { Outcome::Saved });
                 }
                 Err(msg) => form.error = Some(msg),
             },
@@ -653,7 +689,7 @@ const BAD: Color = Color::Rgb(0xef, 0x53, 0x50);
 
 fn ui(frame: &mut Frame, form: &Form, phase: u64, flash: Option<&str>) {
     let [top, status, controls] = Layout::vertical([
-        Constraint::Length(20),
+        Constraint::Length(23),
         Constraint::Length(1),
         Constraint::Length(1),
     ])
@@ -669,7 +705,7 @@ fn ui(frame: &mut Frame, form: &Form, phase: u64, flash: Option<&str>) {
     };
     let [title, body, _] = Layout::vertical([
         Constraint::Length(3),
-        Constraint::Length(17),
+        Constraint::Length(20),
         Constraint::Min(0),
     ])
     .areas(formcol);
@@ -677,7 +713,7 @@ fn ui(frame: &mut Frame, form: &Form, phase: u64, flash: Option<&str>) {
     frame.render_widget(
         Paragraph::new(Line::from(vec![
             Span::styled("bluefin-vm", Style::new().fg(A_DISPLAY).bold()),
-            Span::styled(" setup", Style::new().fg(Color::White).bold()),
+            Span::styled(" tui", Style::new().fg(Color::White).bold()),
             Span::styled(format!("  ·  {}", form.name), DIM),
         ]))
         .block(
@@ -688,17 +724,18 @@ fn ui(frame: &mut Frame, form: &Form, phase: u64, flash: Option<&str>) {
         title,
     );
 
-    let [account, share, resources] = Layout::vertical([
+    let [account, share, resources, actions] = Layout::vertical([
         Constraint::Length(6),
         Constraint::Length(4),
         Constraint::Length(7),
+        Constraint::Length(3),
     ])
     .areas(body);
 
-    // Three rounded, coloured panels; borders flash green on save.
-    let (acc_border, share_border, res_border) = match flash {
-        Some(_) => (OK, OK, OK),
-        None => (A_USER, A_DIR, A_MEM),
+    // Four rounded, coloured panels; borders flash green on save.
+    let (acc_border, share_border, res_border, act_border) = match flash {
+        Some(_) => (OK, OK, OK, OK),
+        None => (A_USER, A_DIR, A_MEM, A_DISPLAY),
     };
     panel(
         frame,
@@ -725,6 +762,15 @@ fn ui(frame: &mut Frame, form: &Form, phase: u64, flash: Option<&str>) {
         res_border,
         form,
         RESOURCES_FIELDS,
+        phase,
+    );
+    panel(
+        frame,
+        actions,
+        " actions ",
+        act_border,
+        form,
+        ACTION_FIELDS,
         phase,
     );
     if let Some(area) = mascot {
@@ -904,6 +950,14 @@ fn control(input: &Input, selected: bool, accent: Color, disabled: bool) -> Vec<
                 Span::styled(options[*sel].label.clone(), value),
                 Span::styled(" ›", arrows),
             ]
+        }
+        Input::Button { label } => {
+            let style = if selected {
+                Style::new().fg(accent).bold()
+            } else {
+                DIM
+            };
+            vec![Span::styled((*label).to_string(), style)]
         }
     }
 }
@@ -1167,7 +1221,23 @@ mod tests {
         form.selected = F_MEM;
         form.next(); // F_MEM -> F_REFIT (skips nothing yet)
         assert_eq!(form.selected, F_REFIT);
-        form.next(); // F_REFIT -> wraps past disabled Display/Scale to F_USER
+        form.next(); // F_REFIT -> past disabled Display/Scale to the Up button
+        assert_eq!(form.selected, F_UP);
+        form.next(); // F_UP -> wraps to F_USER
         assert_eq!(form.selected, F_USER);
+    }
+
+    #[test]
+    fn the_up_button_is_inert_to_editing_and_saving() {
+        let mut form = Form::build("v", None, &keys());
+        form.selected = F_UP;
+        // Keystrokes on the button change nothing (Enter lives in the event loop).
+        form.edit(KeyCode::Char('x'));
+        form.edit(KeyCode::Left);
+        assert!(matches!(form.fields[F_UP].input, Input::Button { .. }));
+        // And it contributes no value to the saved profile.
+        let mut config = Config::default();
+        form.apply_to(&mut config);
+        assert!(config.profile("v").is_some());
     }
 }
