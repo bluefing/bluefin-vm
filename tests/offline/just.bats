@@ -43,6 +43,7 @@ setup() {
   [[ "$output" == *"import --disk"* ]]
   [[ "$output" == *"tart run"* ]]
   # Incremental: build only if the disk is absent, re-import only if newer.
+  # shellcheck disable=SC2016 # the recipe's own text is the assertion
   [[ "$output" == *'if [ -f "$disk" ]'* ]]
   [[ "$output" == *"-nt"* ]]
   # Detached: tart run must be backgrounded with its output captured.
@@ -65,6 +66,7 @@ setup() {
   run just --dry-run tart ssh
   [[ "$output" == *"tart ip"* ]]
   # Default is the literal $USER (what provisioning creates), not a baked name.
+  # shellcheck disable=SC2016 # asserting the unexpanded text is the point
   [[ "$output" == *'$USER'* ]]
 }
 
