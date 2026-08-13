@@ -42,7 +42,8 @@ struct ProvisionArgs {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Download, extract, import, provision, and start the VM (the whole pipeline).
+    /// Bring the VM up: boot it if it exists, otherwise download, import,
+    /// provision, and start it (--replace forces the fresh pipeline).
     Up {
         /// Tart VM name.
         #[arg(long, default_value = DEFAULT_VM_NAME)]
@@ -158,7 +159,7 @@ fn main() -> Result<()> {
             let config = core::config::Config::load()?;
             let spec =
                 core::tart::VmSpec::resolve(&name, config.profile(&name).map(|p| &p.resources));
-            core::tart::import(&disk, &spec)?;
+            core::tart::import(&disk, &spec, true)?;
             eprintln!("Imported.");
             Ok(())
         }
@@ -190,7 +191,7 @@ fn main() -> Result<()> {
         Command::Tui { name } => match tui::run(&name)? {
             // The Up button runs the same pipeline as `bluefin-vm up`, with
             // the saved profile supplying every choice -- one verb, two front
-            // ends. Non-destructive: an existing VM is booted, not replaced.
+            // ends. An existing VM keeps its state and simply boots.
             tui::Outcome::Up => up(
                 &name,
                 DEFAULT_SEED_URL,
@@ -209,10 +210,10 @@ fn main() -> Result<()> {
     }
 }
 
-/// The full pipeline: fetch the seed, unpack its disk, import it, provision the
-/// first-boot account, and start the VM. An existing VM is booted, not
-/// replaced -- it holds the user's state -- unless `--replace` asks for a
-/// fresh one by name.
+/// Bring the VM up. An existing VM holds the user's state, so it simply
+/// boots; the full pipeline -- fetch the seed, unpack its disk, import it,
+/// provision the first-boot account, start it -- runs when the VM is missing
+/// or `--replace` asks for a fresh one by name.
 #[allow(clippy::too_many_arguments)]
 fn up(
     name: &str,
@@ -236,8 +237,9 @@ fn up(
         let config = core::config::Config::load()?;
         let (share, read_only) = resolve_share(&config, name, share);
         eprintln!(
-            "VM '{name}' already exists — booting it. Profile changes do not apply to \
-             an existing VM (apply them to a fresh one: bluefin-vm up --replace)."
+            "VM '{name}' already exists — booting it. Account and resource changes do \
+             not apply to an existing VM (apply them to a fresh one: bluefin-vm up \
+             --replace); the share settings apply on every boot."
         );
         let log = std::env::temp_dir().join(format!("tart-{name}.log"));
         core::tart::run_detached(name, &share, read_only, &log, Duration::from_secs(3))?;
@@ -280,7 +282,9 @@ fn up(
 
     eprintln!("Importing into Tart VM '{name}'…");
     let spec = core::tart::VmSpec::resolve(name, config.profile(name).map(|p| &p.resources));
-    core::tart::import(&disk, &spec)?;
+    // The replace policy travels to the destructive moment: a VM created
+    // while the download ran must fail the import, never be deleted by it.
+    core::tart::import(&disk, &spec, replace)?;
 
     // Provision before boot: the guest oneshot reads the share on first boot.
     let provisioned = if no_provision {

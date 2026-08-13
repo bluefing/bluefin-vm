@@ -14,7 +14,7 @@ you rebuild the VM without losing state, the way you'd rebuild a workstation.
 
 The audience is Bluefin users and developers fluent in cloud-native IaC:
 comfortable with declarative config, ssh agents, and tailscale. `bluefin-vm
-setup` (the TUI) exposes every choice below but requires none — the defaults
+tui` exposes every choice below but requires none — the defaults
 boot a working, personal VM, and each default is overridable per VM.
 
 Mitchell Hashimoto's `mitchellh/nixos-config` is a useful reference point: a

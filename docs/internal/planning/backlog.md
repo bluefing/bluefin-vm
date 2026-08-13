@@ -104,7 +104,7 @@ still needs a reboot.
 
 The motivating case: edit the profile in the TUI (say a new username), press
 Up, and the existing VM boots with the old account — the change silently does
-nothing. `up` prints a blanket warning on the boot-existing path today; the
+nothing. `up` prints a blanket warning on the boot-existing path; the
 hash turns that into a real drift check that warns only when the profile
 actually differs from what the VM was provisioned with.
 
