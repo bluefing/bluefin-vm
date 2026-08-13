@@ -151,6 +151,19 @@ One enabler: make `provision.sh`'s `pdir` overridable
 `/var/mnt`. Start Tier 1 on a `fedora` container; add a Bluefin-base variant for
 the nightly.
 
+## Release
+
+### Check the packaged binary's architecture
+
+`bin/package-cli.sh` hardcodes `triple="aarch64-apple-darwin"` in the asset
+name, while `cargo build --release` builds for whatever host runs it, and
+nothing checks the two agree. On an Intel Mac the script produces an
+`aarch64-apple-darwin` tarball holding an x86_64 binary; pinned in the tap,
+that reaches users as "bad CPU type in executable". Assert it in the script,
+so a hand-built package is covered as well as a CI one:
+
+    lipo -archs "$bindir/bluefin-vm" | grep -qw arm64
+
 ## Host download cache
 
 ### Prune old content-addressed builds
