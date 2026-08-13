@@ -30,7 +30,7 @@ pub struct VmSpec {
 
 impl VmSpec {
     /// Resolve a spec for `name`, precedence saved profile > built-in default.
-    /// The profile (set via `bluefin-vm setup`) is the only source; there is no
+    /// The profile (set via `bluefin-vm tui`) is the only source; there is no
     /// env override, so what the config says is what Tart gets.
     pub fn resolve(name: impl Into<String>, saved: Option<&super::config::Resources>) -> Self {
         Self {
@@ -102,6 +102,13 @@ fn vm_disk_path(name: &str) -> PathBuf {
     tart_home().join("vms").join(name).join("disk.img")
 }
 
+/// Whether a local Tart VM of this name exists (its boot disk is on disk).
+/// Checked before `up` runs the pipeline: an existing VM is booted, never
+/// silently replaced.
+pub fn exists(name: &str) -> bool {
+    vm_disk_path(name).is_file()
+}
+
 // --- disk validation --------------------------------------------------------
 
 /// Reject anything that isn't a raw GPT disk before we destroy the old VM — a
@@ -161,18 +168,29 @@ fn clone_file(src: &Path, dst: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Import `raw` into a Tart VM named `spec.name`, replacing any existing VM.
-pub fn import(raw: &Path, spec: &VmSpec) -> Result<()> {
+/// Import `raw` into a Tart VM named `spec.name`. `replace` carries the
+/// deletion policy to the destructive moment: without it an existing VM is an
+/// error, so a VM created while the pipeline ran (its download takes minutes)
+/// can never be deleted by a check that passed earlier.
+pub fn import(raw: &Path, spec: &VmSpec, replace: bool) -> Result<()> {
     ensure_raw_disk(raw)?;
 
-    // Replace the VM: delete then create fresh. A missing VM makes delete fail
-    // noisily on stderr, so silence it -- the create below is the real guard
-    // (it errors if the VM somehow still exists).
-    let _ = Command::new("tart")
-        .arg("delete")
-        .arg(&spec.name)
-        .stderr(Stdio::null())
-        .status();
+    if exists(&spec.name) {
+        if !replace {
+            bail!(
+                "Tart VM '{}' already exists; replace it with --replace",
+                spec.name
+            );
+        }
+        // Delete then create fresh. A part-deleted VM makes delete fail
+        // noisily on stderr, so silence it -- the create below is the real
+        // guard (it errors if the VM somehow still exists).
+        let _ = Command::new("tart")
+            .arg("delete")
+            .arg(&spec.name)
+            .stderr(Stdio::null())
+            .status();
+    }
     run_tart(&create_args(&spec.name))?;
 
     let dst = vm_disk_path(&spec.name);
@@ -341,15 +359,35 @@ mod tests {
     }
 
     #[test]
-    fn vm_disk_path_honours_tart_home() {
-        // vm_disk_path reads TART_HOME; the guard keeps it from leaking to
-        // other tests that also touch process env.
+    fn vm_disk_path_honours_tart_home_and_import_refuses_to_replace() {
+        // One test owns TART_HOME: vm_disk_path/exists read it, and setting
+        // it from parallel tests would race.
         let prev = std::env::var_os("TART_HOME");
-        std::env::set_var("TART_HOME", "/tmp/tart-test-home");
-        assert_eq!(
-            vm_disk_path("Bluefin"),
-            PathBuf::from("/tmp/tart-test-home/vms/Bluefin/disk.img")
-        );
+        let home = std::env::temp_dir().join("bluefin-vm-tart-home");
+        let _ = std::fs::remove_dir_all(&home);
+        std::env::set_var("TART_HOME", &home);
+
+        assert_eq!(vm_disk_path("Bluefin"), home.join("vms/Bluefin/disk.img"));
+        assert!(!exists("Bluefin"));
+
+        // With a VM present, import without the replace policy must fail
+        // before anything destructive -- the check lives at the point of
+        // deletion, not at `up`'s entry (the pipeline runs for minutes).
+        std::fs::create_dir_all(home.join("vms/Bluefin")).unwrap();
+        std::fs::write(home.join("vms/Bluefin/disk.img"), b"").unwrap();
+        assert!(exists("Bluefin"));
+
+        let raw = home.join("disk.raw");
+        let mut blob = vec![0u8; 520];
+        blob[512..520].copy_from_slice(b"EFI PART");
+        std::fs::write(&raw, &blob).unwrap();
+        let spec = VmSpec::resolve("Bluefin", None);
+        let err = import(&raw, &spec, false).unwrap_err();
+        assert!(err.to_string().contains("already exists"), "{err}");
+        // The VM's disk survived the refused import.
+        assert!(exists("Bluefin"));
+
+        let _ = std::fs::remove_dir_all(&home);
         match prev {
             Some(v) => std::env::set_var("TART_HOME", v),
             None => std::env::remove_var("TART_HOME"),

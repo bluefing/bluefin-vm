@@ -9,12 +9,13 @@ design review.
 
 ## Command surface
 
-The rename and the `config` namespace are designed in
-`../design/command-surface.md`; this is the implementation slice.
+The `config` namespace is designed in `../design/command-surface.md`; this is
+the implementation slice. (The `setup` → `tui` rename from the same design is
+done.)
 
-### Rename `setup` → `tui`, add `bv config init|path|show`
+### Add `bv config init|path|show`
 
-Rename the `Setup` command to `Tui` (`main.rs`). Add a `Config` subcommand:
+Add a `Config` subcommand:
 `init` scaffolds `~/.config/bluefin-vm/config.toml` with a default profile and
 **never clobbers** an existing file (print its path and exit; `--force` to
 overwrite); `path` prints the resolved path; `show` prints the current config.
@@ -68,12 +69,13 @@ drives the VM. The core ops are already UI-agnostic (`core/tart.rs`,
 the ratatui event loop without freezing it (a worker thread + status channel),
 not new core logic.
 
-### Launch / create / up from within the TUI
+### Run the pipeline inside the TUI
 
-Buttons to create or start a VM, and to run the `up-patched` / `up-provisioned`
-flows, from inside the TUI. Where to start: the worker-thread + status-channel
-plumbing above; the ops themselves already exist. This unlocks progress
-reporting below.
+The Up button exists: it saves the profile, closes the TUI, and hands off to
+the same `up` the CLI runs, with the pipeline's output on the plain terminal.
+The next step is keeping the TUI open through the run -- the worker-thread +
+status-channel plumbing above, with the pipeline's progress rendered in-form.
+This unlocks progress reporting below and further verbs (stop, replace).
 
 ### Cycle through machine configs
 
@@ -99,6 +101,12 @@ existing VM." Extends the idempotency already in `extract.rs` (its
 gate: provisioning is gated on `ConditionPathExists=.../username` and only runs
 at boot, so the hash decides *whether to re-arm* that gate, and taking effect
 still needs a reboot.
+
+The motivating case: edit the profile in the TUI (say a new username), press
+Up, and the existing VM boots with the old account — the change silently does
+nothing. `up` prints a blanket warning on the boot-existing path; the
+hash turns that into a real drift check that warns only when the profile
+actually differs from what the VM was provisioned with.
 
 ## Image
 

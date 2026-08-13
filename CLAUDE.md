@@ -60,3 +60,12 @@ Write plainly and durably. Say the essential thing once, then stop.
 - **British spelling** (customise, colour, behaviour).
 - **Shell naming:** uppercase for environment variables only; script-local
   variables lowercase (usage metavars like `-i IMAGE` stay uppercase).
+
+## Commit messages
+
+The subject is a conventional commit (commitlint enforces the format). The
+body opens with a sentence or two of why; when the change has several parts,
+list them as bullets rather than chaining clauses — colon-spliced prose is
+hard to parse. Aim between overexplained and telegraphic: enough that a
+reader six months out understands the change without the diff, and nothing
+they could infer from it.

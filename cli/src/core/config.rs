@@ -94,7 +94,7 @@ pub struct Share {
 /// on (the default) Tart continuously resizes the guest to the window, so a
 /// fixed `display` can't hold and a baked `scale` can't match the live mode.
 /// Turning refit off is what makes a chosen resolution and scale stick; the
-/// `setup` TUI enforces this, only letting you set `display`/`scale` when
+/// `tui` form enforces this, only letting you set `display`/`scale` when
 /// `refit` is off.
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Resources {

@@ -79,7 +79,7 @@ the `bluefin-vm-harden` lock-down, see `docs/PROVISIONING.md`.
 
 Tart maps one guest pixel to one host **point**, so the VM's sharpness comes
 from the *host display mode*, not the guest resolution. Two mutually exclusive
-modes, chosen by the **Refit** toggle in `bluefin-vm setup`:
+modes, chosen by the **Refit** toggle in `bluefin-vm tui`:
 
 - **Refit on (the default)** — Tart's `--display-refit` continuously resizes the
   guest to follow the window and fullscreen. Convenient, but the resolution is
@@ -100,7 +100,7 @@ to the nearest supported value. Scale needs a stable mode, which is why it
 only works with refit off.
 
 Resources (cpu, memory, display, scale, refit) come from the VM's saved profile,
-set with `bluefin-vm setup`; the built-in defaults are 4 vCPUs, 4096 MiB, a
+set with `bluefin-vm tui`; the built-in defaults are 4 vCPUs, 4096 MiB, a
 1920×1200 display, and refit on.
 
 ## The shared folder

@@ -44,9 +44,9 @@ editable, re-appliable spec, with the CLI as the apply engine.
 Tart (Cirrus) — then a Tart Terraform provider or Ansible day-2 layer becomes
 worth the weight.
 
-### sudo posture — a setup toggle
+### sudo posture — a TUI toggle
 
-**Decision:** passwordless `sudo` is its own toggle in `bluefin-vm setup`,
+**Decision:** passwordless `sudo` is its own toggle in `bluefin-vm tui`,
 independent of everything else. Login password and sudo were always independent
 choices; today sudo is instead a side effect of the (now-dropped) autologin
 flag, so this decouples it.
