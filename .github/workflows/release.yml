@@ -74,7 +74,7 @@ jobs:
       # notes, which are for users.
       - name: Summarise the formula fields
         env:
-          URL: https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/${{ steps.pkg.outputs.asset }}
+          URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ steps.pkg.outputs.asset }}
           SHA256: ${{ steps.pkg.outputs.sha256 }}
         run: |
           {
@@ -102,7 +102,7 @@ jobs:
       - name: Bump the tap formula
         env:
           SHA256: ${{ steps.pkg.outputs.sha256 }}
-          URL: https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/${{ steps.pkg.outputs.asset }}
+          URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ steps.pkg.outputs.asset }}
         run: |
           set -euo pipefail
           cd tap
