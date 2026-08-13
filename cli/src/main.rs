@@ -63,6 +63,9 @@ enum Command {
         /// Skip provisioning; boot the baked test login instead.
         #[arg(long)]
         no_provision: bool,
+        /// Replace an existing VM (destroys its state) instead of booting it.
+        #[arg(long)]
+        replace: bool,
         #[command(flatten)]
         provision: ProvisionArgs,
     },
@@ -124,6 +127,7 @@ fn main() -> Result<()> {
             work_dir,
             share,
             no_provision,
+            replace,
             provision,
         } => up(
             &name,
@@ -133,6 +137,7 @@ fn main() -> Result<()> {
             share,
             provision,
             no_provision,
+            replace,
         ),
         Command::Download { out, url, sha256 } => {
             let out = core::config::expand_tilde(out);
@@ -182,12 +187,32 @@ fn main() -> Result<()> {
             );
             Ok(())
         }
-        Command::Tui { name } => tui::run(&name),
+        Command::Tui { name } => match tui::run(&name)? {
+            // The Up button runs the same pipeline as `bluefin-vm up`, with
+            // the saved profile supplying every choice -- one verb, two front
+            // ends. Non-destructive: an existing VM is booted, not replaced.
+            tui::Outcome::Up => up(
+                &name,
+                DEFAULT_SEED_URL,
+                None,
+                None,
+                None,
+                ProvisionArgs {
+                    user: None,
+                    ssh_key: None,
+                },
+                false,
+                false,
+            ),
+            tui::Outcome::Saved | tui::Outcome::Cancelled => Ok(()),
+        },
     }
 }
 
 /// The full pipeline: fetch the seed, unpack its disk, import it, provision the
-/// first-boot account, and start the VM.
+/// first-boot account, and start the VM. An existing VM is booted, not
+/// replaced -- it holds the user's state -- unless `--replace` asks for a
+/// fresh one by name.
 #[allow(clippy::too_many_arguments)]
 fn up(
     name: &str,
@@ -197,7 +222,25 @@ fn up(
     share: Option<PathBuf>,
     provision: ProvisionArgs,
     no_provision: bool,
+    replace: bool,
 ) -> Result<()> {
+    if core::tart::exists(name) && !replace {
+        let config = core::config::Config::load()?;
+        let (share, read_only) = resolve_share(&config, name, share);
+        eprintln!(
+            "VM '{name}' already exists — booting it. Profile changes do not apply to \
+             an existing VM (apply them to a fresh one: up --replace)."
+        );
+        let log = std::env::temp_dir().join(format!("tart-{name}.log"));
+        core::tart::run_detached(name, &share, read_only, &log, Duration::from_secs(3))?;
+        eprintln!(
+            "VM '{name}' running detached (window open). Log: {}",
+            log.display()
+        );
+        eprintln!("Stop it:  tart stop {name}");
+        return Ok(());
+    }
+
     let work_dir = core::config::expand_tilde(work_dir.unwrap_or_else(default_work_dir));
     std::fs::create_dir_all(&work_dir)
         .with_context(|| format!("creating work dir {}", work_dir.display()))?;
@@ -225,18 +268,7 @@ fn up(
     }
 
     let mut config = core::config::Config::load()?;
-
-    // Share precedence mirrors resources: --share flag > profile > default.
-    // Read-only is profile-only (no flag yet).
-    let read_only = config
-        .profile(name)
-        .and_then(|p| p.share.read_only)
-        .unwrap_or(false);
-    let share = core::config::expand_tilde(
-        share
-            .or_else(|| config.profile(name).and_then(|p| p.share.directory.clone()))
-            .unwrap_or_else(default_share),
-    );
+    let (share, read_only) = resolve_share(&config, name, share);
 
     eprintln!("Importing into Tart VM '{name}'…");
     let spec = core::tart::VmSpec::resolve(name, config.profile(name).map(|p| &p.resources));
@@ -404,6 +436,24 @@ fn default_share() -> PathBuf {
     std::env::var_os("TART_SHARE_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|| home().join("bluefin-share"))
+}
+
+/// Resolve the share directory and read-only flag for `name` -- flag >
+/// profile > default; read-only is profile-only (no flag yet).
+fn resolve_share(
+    config: &core::config::Config,
+    name: &str,
+    flag: Option<PathBuf>,
+) -> (PathBuf, bool) {
+    let read_only = config
+        .profile(name)
+        .and_then(|p| p.share.read_only)
+        .unwrap_or(false);
+    let share = core::config::expand_tilde(
+        flag.or_else(|| config.profile(name).and_then(|p| p.share.directory.clone()))
+            .unwrap_or_else(default_share),
+    );
+    (share, read_only)
 }
 
 /// Default account name: the host's `$USER`, so the VM feels like the user's.

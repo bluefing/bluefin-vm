@@ -102,6 +102,13 @@ fn vm_disk_path(name: &str) -> PathBuf {
     tart_home().join("vms").join(name).join("disk.img")
 }
 
+/// Whether a local Tart VM of this name exists (its boot disk is on disk).
+/// Checked before `up` runs the pipeline: an existing VM is booted, never
+/// silently replaced.
+pub fn exists(name: &str) -> bool {
+    vm_disk_path(name).is_file()
+}
+
 // --- disk validation --------------------------------------------------------
 
 /// Reject anything that isn't a raw GPT disk before we destroy the old VM — a

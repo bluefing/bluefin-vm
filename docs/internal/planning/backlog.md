@@ -69,12 +69,13 @@ drives the VM. The core ops are already UI-agnostic (`core/tart.rs`,
 the ratatui event loop without freezing it (a worker thread + status channel),
 not new core logic.
 
-### Launch / create / up from within the TUI
+### Run the pipeline inside the TUI
 
-Buttons to create or start a VM, and to run the `up-patched` / `up-provisioned`
-flows, from inside the TUI. Where to start: the worker-thread + status-channel
-plumbing above; the ops themselves already exist. This unlocks progress
-reporting below.
+The Up button exists: it saves the profile, closes the TUI, and hands off to
+the same `up` the CLI runs, with the pipeline's output on the plain terminal.
+The next step is keeping the TUI open through the run -- the worker-thread +
+status-channel plumbing above, with the pipeline's progress rendered in-form.
+This unlocks progress reporting below and further verbs (stop, replace).
 
 ### Cycle through machine configs
 
@@ -91,17 +92,6 @@ the worker-thread work above.
 
 ## Idempotency
 
-### Make `up` non-destructive
-
-`up` replaces the VM on every run: `core/tart.rs`'s `import` deletes the
-existing VM and recreates it from the cached disk, so a daily-driver guest
-loses its state (home directory included) each time. Invert the default: when
-the named VM exists, `up` just boots it; the download/import/provision
-pipeline runs only when it is missing, and replacement becomes an explicit
-`--replace` flag. Simplest existence check is the name in `tart list`; the
-config-hash item below refines "exists" into "exists with this config".
-Surfaced after the first `brew upgrade` to 0.2.0.
-
 ### Config-hash to skip re-provisioning
 
 Hash the resolved profile + provisioning inputs, store the hash, and only
@@ -111,6 +101,12 @@ existing VM." Extends the idempotency already in `extract.rs` (its
 gate: provisioning is gated on `ConditionPathExists=.../username` and only runs
 at boot, so the hash decides *whether to re-arm* that gate, and taking effect
 still needs a reboot.
+
+The motivating case: edit the profile in the TUI (say a new username), press
+Up, and the existing VM boots with the old account — the change silently does
+nothing. `up` prints a blanket warning on the boot-existing path today; the
+hash turns that into a real drift check that warns only when the profile
+actually differs from what the VM was provisioned with.
 
 ## Image
 
