@@ -1,11 +1,15 @@
 name: Release bluefin-vm
 
 # Cuts a tool release: on a `v*` tag, build the `bluefin-vm` binary on a native
-# Apple-Silicon runner and attach a prebuilt tarball (+ sha256) to the GitHub
-# Release. This is the artifact the Homebrew tap fetches -- it ships the TOOL,
-# not the disk, so the disk's hosting (R2, manual) is independent of releases.
+# Apple-Silicon runner, attach a pre-built tarball (+ sha256) to the GitHub
+# Release, then point the Homebrew tap's formula at it. This ships the TOOL,
+# not the disk, so the disk's hosting (R2) is independent of releases.
 # The build runs bin/package-cli.sh, the same script used locally, so the
-# release artifact is identical to one built by hand.
+# release artefact is identical to one built by hand.
+#
+# The tap lives in a separate repo, which the job's own token cannot write to,
+# so the formula bump needs TAP_PUSH_TOKEN -- a fine-grained PAT with contents
+# read+write on bluefing/homebrew-tap and nothing else.
 
 on:
   push:
@@ -13,7 +17,7 @@ on:
       - "v*"
 
 permissions:
-  contents: write   # create the GitHub Release and upload assets
+  contents: write # create the GitHub Release and upload assets
 
 jobs:
   release:
@@ -25,7 +29,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Show host arch (sanity check)
-        run: uname -m   # expect: arm64
+        run: uname -m # expect: arm64
 
       # The tag drives the version; strip the leading `v` for the crate/asset.
       - name: Resolve version from the tag
@@ -61,14 +65,65 @@ jobs:
           files: |
             output/${{ steps.pkg.outputs.asset }}
             output/${{ steps.pkg.outputs.asset }}.sha256
-          # The tap formula pins the url + sha256 below. release.yml surfaces
-          # them here so bumping Formula/bluefin-vm.rb is copy-paste.
+          # A placeholder: the maintainer replaces this with what changed.
           body: |
             Prebuilt `bluefin-vm` for Apple Silicon (arm64 macOS).
 
-            Homebrew tap formula fields for this release:
+      # The formula fields land in the run summary, where a maintainer can
+      # paste them if the tap step below fails. They stay out of the release
+      # notes, which are for users.
+      - name: Summarise the formula fields
+        env:
+          URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ steps.pkg.outputs.asset }}
+          SHA256: ${{ steps.pkg.outputs.sha256 }}
+        run: |
+          {
+            echo '## Homebrew tap formula fields'
+            echo '```ruby'
+            echo "  url \"$URL\""
+            echo "  sha256 \"$SHA256\""
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
-            ```ruby
-            url "https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/${{ steps.pkg.outputs.asset }}"
-            sha256 "${{ steps.pkg.outputs.sha256 }}"
-            ```
+      # Point the tap at the release just published. Checked out separately
+      # with the PAT because the job's own token is scoped to this repo.
+      - name: Check out the Homebrew tap
+        uses: actions/checkout@v4
+        with:
+          repository: bluefing/homebrew-tap
+          token: ${{ secrets.TAP_PUSH_TOKEN }}
+          path: tap
+
+      # Values reach the script through env, never string-interpolated into it.
+      # Each replacement matches its keyword at any indentation and rewrites the
+      # whole line, keeping the formula's own layout and comments; the greps
+      # afterwards fail the run if either line didn't match, so a reshuffled
+      # formula can't silently publish a stale pin.
+      - name: Bump the tap formula
+        env:
+          SHA256: ${{ steps.pkg.outputs.sha256 }}
+          URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ steps.pkg.outputs.asset }}
+        run: |
+          set -euo pipefail
+          cd tap
+          formula=Formula/bluefin-vm.rb
+          sed -i '' -E \
+            -e "s|^([[:space:]]*)url[[:space:]].*|\1url \"$URL\"|" \
+            -e "s|^([[:space:]]*)sha256[[:space:]].*|\1sha256 \"$SHA256\"|" "$formula"
+          grep -qF "$URL" "$formula"
+          grep -qF "$SHA256" "$formula"
+          # GitHub's noreply form is <user-id>+<login>@users.noreply.github.com,
+          # and 41898282 is github-actions[bot]'s id, so the tap commit is
+          # attributed to the bot account rather than an unlinked author.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$formula"
+          # A re-run of the same tag leaves the formula unchanged; that is a
+          # success, not an empty-commit failure.
+          if git diff --cached --quiet; then
+            echo "formula already at $VERSION"
+            exit 0
+          fi
+          git commit -m "bluefin-vm $VERSION"
+          git push
+          echo "tap updated to $VERSION"

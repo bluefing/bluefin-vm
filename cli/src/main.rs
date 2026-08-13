@@ -30,7 +30,7 @@ struct Cli {
 }
 
 /// Flags shared by `up` and `provision` for the first-boot account.
-#[derive(Args)]
+#[derive(Args, Default)]
 struct ProvisionArgs {
     /// Account to create in the VM (default: your macOS username, $USER).
     #[arg(long)]
@@ -40,36 +40,58 @@ struct ProvisionArgs {
     ssh_key: Option<PathBuf>,
 }
 
+/// What `up` needs. Clap fills it from the command line; `Default` is the
+/// same posture as a bare `bluefin-vm up`, which is what the TUI's Up button
+/// runs once it has saved the profile -- every value then resolves through
+/// flag > saved profile > built-in default.
+#[derive(Args)]
+struct UpArgs {
+    /// Tart VM name.
+    #[arg(long, default_value = DEFAULT_VM_NAME)]
+    name: String,
+    /// Seed URL (defaults to the published seed).
+    #[arg(long, default_value = DEFAULT_SEED_URL)]
+    url: String,
+    /// Hex SHA-256 of the disk zip; also the cache key. Defaults to the
+    /// published `<url>.sha256`; a download mismatch fails the run.
+    #[arg(long)]
+    sha256: Option<String>,
+    /// Where to cache disk images (each build under its own checksum).
+    #[arg(long)]
+    work_dir: Option<PathBuf>,
+    /// Host folder shared into the VM (durable tier).
+    #[arg(long)]
+    share: Option<PathBuf>,
+    /// Skip provisioning; boot the baked test login instead.
+    #[arg(long)]
+    no_provision: bool,
+    /// Replace an existing VM (destroys its state) instead of booting it.
+    #[arg(long)]
+    replace: bool,
+    #[command(flatten)]
+    provision: ProvisionArgs,
+}
+
+impl Default for UpArgs {
+    fn default() -> Self {
+        Self {
+            name: DEFAULT_VM_NAME.into(),
+            url: DEFAULT_SEED_URL.into(),
+            sha256: None,
+            work_dir: None,
+            share: None,
+            no_provision: false,
+            replace: false,
+            provision: ProvisionArgs::default(),
+        }
+    }
+}
+
 #[derive(Subcommand)]
 enum Command {
     /// Bring the VM up: boot it if it exists, otherwise download, import,
     /// provision, and start it (--replace forces the fresh pipeline).
-    Up {
-        /// Tart VM name.
-        #[arg(long, default_value = DEFAULT_VM_NAME)]
-        name: String,
-        /// Seed URL (defaults to the published seed).
-        #[arg(long, default_value = DEFAULT_SEED_URL)]
-        url: String,
-        /// Hex SHA-256 of the disk zip; also the cache key. Defaults to the
-        /// published `<url>.sha256`; a download mismatch fails the run.
-        #[arg(long)]
-        sha256: Option<String>,
-        /// Where to cache disk images (each build under its own checksum).
-        #[arg(long)]
-        work_dir: Option<PathBuf>,
-        /// Host folder shared into the VM (durable tier).
-        #[arg(long)]
-        share: Option<PathBuf>,
-        /// Skip provisioning; boot the baked test login instead.
-        #[arg(long)]
-        no_provision: bool,
-        /// Replace an existing VM (destroys its state) instead of booting it.
-        #[arg(long)]
-        replace: bool,
-        #[command(flatten)]
-        provision: ProvisionArgs,
-    },
+    Up(UpArgs),
     /// Download the VM seed (resumable), optionally verifying its checksum.
     Download {
         /// Destination file.
@@ -121,25 +143,7 @@ enum Command {
 
 fn main() -> Result<()> {
     match Cli::parse().command {
-        Command::Up {
-            name,
-            url,
-            sha256,
-            work_dir,
-            share,
-            no_provision,
-            replace,
-            provision,
-        } => up(
-            &name,
-            &url,
-            sha256.as_deref(),
-            work_dir,
-            share,
-            provision,
-            no_provision,
-            replace,
-        ),
+        Command::Up(args) => up(args),
         Command::Download { out, url, sha256 } => {
             let out = core::config::expand_tilde(out);
             let outcome = download(&url, &out, sha256.as_deref())?;
@@ -192,19 +196,10 @@ fn main() -> Result<()> {
             // The Up button runs the same pipeline as `bluefin-vm up`, with
             // the saved profile supplying every choice -- one verb, two front
             // ends. An existing VM keeps its state and simply boots.
-            tui::Outcome::Up => up(
-                &name,
-                DEFAULT_SEED_URL,
-                None,
-                None,
-                None,
-                ProvisionArgs {
-                    user: None,
-                    ssh_key: None,
-                },
-                false,
-                false,
-            ),
+            tui::Outcome::Up => up(UpArgs {
+                name,
+                ..Default::default()
+            }),
             tui::Outcome::Saved | tui::Outcome::Cancelled => Ok(()),
         },
     }
@@ -214,17 +209,19 @@ fn main() -> Result<()> {
 /// boots; the full pipeline -- fetch the seed, unpack its disk, import it,
 /// provision the first-boot account, start it -- runs when the VM is missing
 /// or `--replace` asks for a fresh one by name.
-#[allow(clippy::too_many_arguments)]
-fn up(
-    name: &str,
-    url: &str,
-    expected: Option<&str>,
-    work_dir: Option<PathBuf>,
-    share: Option<PathBuf>,
-    provision: ProvisionArgs,
-    no_provision: bool,
-    replace: bool,
-) -> Result<()> {
+fn up(args: UpArgs) -> Result<()> {
+    let UpArgs {
+        name,
+        url,
+        sha256,
+        work_dir,
+        share,
+        no_provision,
+        replace,
+        provision,
+    } = args;
+    let name = name.as_str();
+
     if core::tart::exists(name) && !replace {
         // Provisioning only happens on a fresh VM, so flags that ask for it
         // must fail loudly here -- silently ignoring them would look applied.
@@ -260,14 +257,14 @@ fn up(
     // reuse a stale disk (the size-only extract skip once served a six-week-old
     // image). A cache hit is a single stat; the 65-byte `.sha256` sidecar tells
     // us which build is current, and `--sha256` pins the key without the fetch.
-    let key = resolve_disk_key(url, expected)?;
+    let key = resolve_disk_key(&url, sha256.as_deref())?;
     let disk = disk_cache_path(&work_dir, &key);
 
     if disk.is_file() {
         eprintln!("Using cached disk {} ({})", &key[..12], disk.display());
     } else {
         let zip = work_dir.join(format!("{key}.zip"));
-        let outcome = download(url, &zip, Some(key.as_str()))?;
+        let outcome = download(&url, &zip, Some(key.as_str()))?;
         report_download(&outcome, &zip);
         let (extracted, extract_outcome) =
             extract(&zip, disk.parent().expect("cache path has a parent"))?;
