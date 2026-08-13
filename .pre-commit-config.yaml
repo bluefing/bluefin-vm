@@ -35,7 +35,10 @@ repos:
     rev: v0.11.0.1
     hooks:
       - id: shellcheck
-        args: ["-S", "warning"]
+        # style is the strictest severity. Anything looser drops the info-level
+        # checks, among them the `A && B || C` that reads as if-then-else and
+        # is not.
+        args: ["-S", "style"]
         stages: [pre-commit, pre-push]
 
   - repo: https://github.com/maxwinterstein/shfmt-py

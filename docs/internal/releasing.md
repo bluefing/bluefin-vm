@@ -33,11 +33,13 @@ Versions follow semver, pre-1.0, so a breaking change is a minor bump.
    the release.
 2. **Tag the merge commit.** On an up-to-date `main`:
 
-        git tag vX.Y.Z
-        git push origin vX.Y.Z
+        just release X.Y.Z
 
-   Tags matching `v*` are protected against updates and deletion, so a typo
-   means cutting a new version rather than moving the tag.
+   The recipe refuses unless the branch is `main`, the tree is clean, `main`
+   matches `origin/main`, `cli/Cargo.toml` declares that version, and the tag
+   is unused. Add `-n` to run every check and stop before tagging. Tags
+   matching `v*` are protected against updates and deletion, so a typo means
+   cutting a new version rather than moving the tag.
 3. **Wait for `release.yml`.** It builds on an Apple Silicon runner, publishes
    the Release with the tarball and its `.sha256`, then rewrites the tap
    formula's `url` and `sha256` and pushes. The run summary carries both

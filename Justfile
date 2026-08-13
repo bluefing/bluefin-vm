@@ -32,6 +32,16 @@ tools:
 setup: tools
   pre-commit install
 
+# Tag a release and push the tag, which starts the release workflow. The crate
+# bump must already be on main through a PR -- bin/release.sh refuses when it
+# is not, and lists the rest of what it checks (`bin/release.sh -h`).
+[doc('Tag and push a release (semver X.Y.Z); -n to dry-run the checks')]
+[arg('dry_run', long='dry-run', short='n', value='-n')]
+[confirm("Tag and push this release? The tag cannot be moved or deleted afterwards.")]
+[group('release')]
+release version dry_run="":
+  ./bin/release.sh {{ dry_run }} "{{ version }}"
+
 # Tier 0: Rust unit tests, offline bats contracts, guest-script pytest -- fast, no deps
 [group('test')]
 test: cli::test
