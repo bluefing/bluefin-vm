@@ -16,7 +16,7 @@ Two properties carry the weight:
    not the way you'd `docker rm` a container.
 2. **Zero-to-personal in one command.** `bluefin-vm up` downloads, imports,
    provisions your account, and boots. Sane defaults require no input; everything
-   is overridable through interactive setup, which writes a per-VM profile that
+   is overridable through the interactive TUI, which writes a per-VM profile that
    later commands reuse.
 
 ## Audience

@@ -46,8 +46,8 @@ sequenceDiagram
 ```
 
 Precedence throughout is **flag > saved profile > built-in default** (`up`'s
-own flags, or a VM's profile from `bluefin-vm setup`). The guest oneshot is
+own flags, or a VM's profile from `bluefin-vm tui`). The guest oneshot is
 gated on `ConditionPathExists=.../.bluefin-vm/username` and only ever runs at
-boot, so re-provisioning an already-running VM (e.g. after `bluefin-vm setup`
+boot, so re-provisioning an already-running VM (e.g. after `bluefin-vm tui`
 changes a profile) needs a reboot before it takes effect -- not just `up`
 against the VM that's already up.

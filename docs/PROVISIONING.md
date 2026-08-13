@@ -92,7 +92,7 @@ already in the share. A real password *does* exist, which is what makes the
 greeter, the lock screen, `sudo`, and GUI polkit prompts all work normally —
 none of the password-less papercuts.
 
-Two postures then sit on top, each a `bluefin-vm setup` toggle, each defaulting
+Two postures then sit on top, each a `bluefin-vm tui` toggle, each defaulting
 to the safer/behind-the-host choice:
 
 - **`sudo` prompts by default.** Not for security — the account is an admin
@@ -110,7 +110,7 @@ The default login password is the username — fine as a public convention behin
 the host, but you may want a real one. Run **`bluefin-vm-harden`** in the VM (on
 `PATH`, over ssh or a terminal); it self-elevates and sets a password you
 choose. For a pubkey-only VM or passwordless `sudo`, set those in
-`bluefin-vm setup` before `up` (or edit the flag files in the share and reboot).
+`bluefin-vm tui` before `up` (or edit the flag files in the share and reboot).
 
 `bluefin-vm up` still takes `--no-provision`, which skips provisioning entirely
 and boots the stock baked `bluefin` login untouched.
@@ -123,7 +123,7 @@ and boots the stock baked `bluefin` login untouched.
   need the token present to authenticate, and Tart has no USB passthrough — see
   the secrets discussion in `docs/internal/design/access.md`.
 - **The sudo and ssh-password postures are profile-only.** They're set through
-  `bluefin-vm setup` (or the share flag files), not `up` flags yet.
+  `bluefin-vm tui` (or the share flag files), not `up` flags yet.
 - **One account.** The model provisions a single primary user; multi-user or
   per-key policies aren't expressed.
 

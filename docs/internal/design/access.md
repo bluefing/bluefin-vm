@@ -29,8 +29,8 @@ diverge.** The Decision column notes each divergence and its reason.
 | User account | declarative user in `wheel`, `docker`, `lxd`; fish; `mutableUsers = false` | host writes the chosen name to the share; guest oneshot creates it in `wheel` with `--create-home` | **decided** — one admin account; name from the TUI, default the host `$USER` |
 | Autologin | none — GDM greeter | none | **decided** — greeter login always; drop the autologin path entirely |
 | Login password | a real low-value password; `hashedPassword` committed in the public repo | `password == username`, derived guest-side at first boot | **decided** — nothing but the username (already needed) crosses the share; a self-evident throwaway, so immune to the reused-password trap |
-| sudo | never prompts — a `NOPASSWD` rule (`security.sudo.wheelNeedsPassword = false`) | a `bluefin-vm setup` toggle; **prompts by default**, opt into passwordless | **decided (c)** — its own toggle, independent of everything else. Default prompts (a speed-bump against a mistyped/pasted root command, not security); toggle on writes the `NOPASSWD` drop-in for Hashi-style passwordless. |
-| ssh auth | pubkey **and** `PasswordAuthentication = true`; `PermitRootLogin = no` | same by default; a `bluefin-vm setup` toggle disables password auth (pubkey-only) | **follow Hashi by default** — behind the host (see Reachability), so password auth stays on. A toggle turns it off (pubkey-only) for bridged or hardened setups. No root login either way. |
+| sudo | never prompts — a `NOPASSWD` rule (`security.sudo.wheelNeedsPassword = false`) | a `bluefin-vm tui` toggle; **prompts by default**, opt into passwordless | **decided (c)** — its own toggle, independent of everything else. Default prompts (a speed-bump against a mistyped/pasted root command, not security); toggle on writes the `NOPASSWD` drop-in for Hashi-style passwordless. |
+| ssh auth | pubkey **and** `PasswordAuthentication = true`; `PermitRootLogin = no` | same by default; a `bluefin-vm tui` toggle disables password auth (pubkey-only) | **follow Hashi by default** — behind the host (see Reachability), so password auth stays on. A toggle turns it off (pubkey-only) for bridged or hardened setups. No root login either way. |
 | Secrets (keys, tokens) | rsync's real `~/.ssh` + `~/.gnupg` into the VM; never in the nix config | copy in by default; a TUI setting picks which keys | **decided (a)** — copy by default, like Hashi. Hardware-backed keys (YubiKey) are the exception: they can't be copied usefully and Tart has no USB passthrough, so they need agent forwarding — an optional toggle (BL-13). See Secrets. |
 | Dotfiles / environment | home-manager, declarative in-repo | chezmoi bootstrap hook | **open** — mechanism undecided (below) |
 
@@ -42,7 +42,7 @@ gets a host-private address, reachable from the Mac but not from the physical LA
 `password == username` over ssh is no weaker here than his — which is why ssh
 follows him rather than diverging. Exposure only widens if a user opts into
 `--net-bridged` (VM on the real LAN) or runs sibling VMs that share the vmnet
-subnet; for those, a `bluefin-vm setup` toggle disables ssh password auth
+subnet; for those, a `bluefin-vm tui` toggle disables ssh password auth
 (pubkey-only). By default it stays on, like Hashi.
 
 Why Hashi commits a real password hash at all: it is a reproducibility trade. An

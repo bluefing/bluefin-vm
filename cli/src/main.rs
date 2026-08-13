@@ -108,7 +108,7 @@ enum Command {
         share: Option<PathBuf>,
     },
     /// Interactively edit a VM's saved profile (account, share, resources).
-    Setup {
+    Tui {
         /// Tart VM name -- the profile to edit.
         #[arg(long, default_value = DEFAULT_VM_NAME)]
         name: String,
@@ -182,7 +182,7 @@ fn main() -> Result<()> {
             );
             Ok(())
         }
-        Command::Setup { name } => tui::run(&name),
+        Command::Tui { name } => tui::run(&name),
     }
 }
 
@@ -436,7 +436,7 @@ impl ProvisionArgs {
             .map(core::config::SshKey::Path)
             .or_else(|| saved.and_then(|a| a.ssh_key.clone()))
             .or_else(|| default_ssh_key().map(core::config::SshKey::Path));
-        // The sudo and ssh-password postures are profile-only (set via `setup`),
+        // The sudo and ssh-password postures are profile-only (set via `tui`),
         // like scale -- carry the saved values through so a CLI run preserves them.
         Ok(core::config::Account {
             user: Some(user),
@@ -478,7 +478,7 @@ fn provision_from(
 /// Resolve the account for `name` (flag > profile > default) and store it back
 /// into `config`, returning the provisioning data. The caller writes it to the
 /// share and persists `config`. Scale has no CLI flag -- it's profile-only,
-/// set via `bluefin-vm setup`.
+/// set via `bluefin-vm tui`.
 fn resolve_account(
     config: &mut core::config::Config,
     name: &str,

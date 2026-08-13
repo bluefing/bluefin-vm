@@ -1,4 +1,4 @@
-//! Interactive `setup` form -- a ratatui front-end over `core::config`.
+//! Interactive `tui` form -- a ratatui front-end over `core::config`.
 //!
 //! Thin by design: it edits a VM's profile fields and writes them back through
 //! the same `Config` the CLI uses. No provisioning or Tart calls happen here;
@@ -677,7 +677,7 @@ fn ui(frame: &mut Frame, form: &Form, phase: u64, flash: Option<&str>) {
     frame.render_widget(
         Paragraph::new(Line::from(vec![
             Span::styled("bluefin-vm", Style::new().fg(A_DISPLAY).bold()),
-            Span::styled(" setup", Style::new().fg(Color::White).bold()),
+            Span::styled(" tui", Style::new().fg(Color::White).bold()),
             Span::styled(format!("  ·  {}", form.name), DIM),
         ]))
         .block(

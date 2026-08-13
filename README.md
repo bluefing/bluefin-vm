@@ -46,13 +46,8 @@ Experimental — a working proof-of-concept, not a stable release.
 
 Not built yet — where this is headed:
 
-- **Interactive setup (TUI)** — a [ratatui](https://ratatui.rs) front-end over
-  the same core, to customise the VM (account, ssh key, sudo/ssh posture, CPU/memory,
-  image flavour) interactively instead of via flags.
 - **Flavours** — pick a Bluefin variant (e.g. `bluefin-dx`) as the base; each is
   just a different upstream image.
-- **Automated disk delivery** — CI builds and publishes disks so downloads stay
-  fresh without manual uploads.
 - **Host key integration** — use your host ssh keys / YubiKey from inside the
   guest via agent forwarding, no secrets copied in.
 - **Suspend / resume** — pause keeping the in-RAM session (waiting on Tart's

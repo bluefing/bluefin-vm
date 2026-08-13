@@ -9,12 +9,13 @@ design review.
 
 ## Command surface
 
-The rename and the `config` namespace are designed in
-`../design/command-surface.md`; this is the implementation slice.
+The `config` namespace is designed in `../design/command-surface.md`; this is
+the implementation slice. (The `setup` → `tui` rename from the same design is
+done.)
 
-### Rename `setup` → `tui`, add `bv config init|path|show`
+### Add `bv config init|path|show`
 
-Rename the `Setup` command to `Tui` (`main.rs`). Add a `Config` subcommand:
+Add a `Config` subcommand:
 `init` scaffolds `~/.config/bluefin-vm/config.toml` with a default profile and
 **never clobbers** an existing file (print its path and exit; `--force` to
 overwrite); `path` prints the resolved path; `show` prints the current config.
@@ -89,6 +90,17 @@ gives coarse stages, so expect a mix of a real bar and stage labels. Pairs with
 the worker-thread work above.
 
 ## Idempotency
+
+### Make `up` non-destructive
+
+`up` replaces the VM on every run: `core/tart.rs`'s `import` deletes the
+existing VM and recreates it from the cached disk, so a daily-driver guest
+loses its state (home directory included) each time. Invert the default: when
+the named VM exists, `up` just boots it; the download/import/provision
+pipeline runs only when it is missing, and replacement becomes an explicit
+`--replace` flag. Simplest existence check is the name in `tart list`; the
+config-hash item below refines "exists" into "exists with this config".
+Surfaced after the first `brew upgrade` to 0.2.0.
 
 ### Config-hash to skip re-provisioning
 

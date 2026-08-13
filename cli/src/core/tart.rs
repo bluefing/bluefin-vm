@@ -30,7 +30,7 @@ pub struct VmSpec {
 
 impl VmSpec {
     /// Resolve a spec for `name`, precedence saved profile > built-in default.
-    /// The profile (set via `bluefin-vm setup`) is the only source; there is no
+    /// The profile (set via `bluefin-vm tui`) is the only source; there is no
     /// env override, so what the config says is what Tart gets.
     pub fn resolve(name: impl Into<String>, saved: Option<&super::config::Resources>) -> Self {
         Self {
