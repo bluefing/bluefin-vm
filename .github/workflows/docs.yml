@@ -1,0 +1,58 @@
+name: Publish the docs site
+
+# Builds the Zensical site from docs/content and deploys it to GitHub Pages,
+# which is what the README links to. Only the site is published: docs/internal
+# holds design notes, the backlog and the release runbook, and stays out of it
+# because zensical's docs_dir is content.
+#
+# Runs on pushes to main that touch the docs, so an unrelated commit doesn't
+# redeploy, and on demand for a rebuild after changing Pages settings.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write # the deploy step authenticates to Pages with OIDC
+
+# One deployment at a time, and let a newer push win: an in-progress build of
+# superseded content has nothing worth finishing.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # uv comes from mise.toml, the same pin a developer gets, so a local
+      # `just docs build` and this one run the same toolchain.
+      - name: Install the pinned project tooling
+        uses: jdx/mise-action@v2
+
+      - name: Build the site
+        run: cd docs && uv run zensical build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

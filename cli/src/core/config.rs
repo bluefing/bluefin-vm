@@ -75,7 +75,7 @@ impl<'de> Deserialize<'de> for SshKey {
     }
 }
 
-/// Host folder mapped into the guest over virtiofs (the `bluefin-share` mount).
+/// Host directory mapped into the guest over virtiofs (the `bluefin-share` mount).
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Share {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -381,6 +381,37 @@ ssh_key = "/home/alice/.ssh/id_ed25519.pub"
             Some(v) => std::env::set_var("XDG_CONFIG_HOME", v),
             None => std::env::remove_var("XDG_CONFIG_HOME"),
         }
+    }
+
+    /// The reference page's example is the documented spelling of every key.
+    /// Parsing it here means a renamed or retyped field fails the build rather
+    /// than leaving the docs quietly wrong -- unknown keys are ignored on read,
+    /// so nothing else would notice.
+    #[test]
+    fn documented_example_parses_into_the_schema() {
+        const PAGE: &str = include_str!("../../../docs/content/reference/configuration.md");
+        let example = PAGE
+            .split_once("```toml")
+            .and_then(|(_, rest)| rest.split_once("```"))
+            .map(|(block, _)| block)
+            .expect("the reference page carries a toml example");
+
+        let cfg: Config = toml::from_str(example).expect("the documented example parses");
+        let p = cfg.profile("work").expect("the example profile is `work`");
+        assert_eq!(p.account.user.as_deref(), Some("alice"));
+        assert_eq!(
+            p.account.ssh_key,
+            Some(SshKey::Path("~/.ssh/id_ed25519.pub".into()))
+        );
+        assert_eq!(p.account.sudo_password, Some(true));
+        assert_eq!(p.account.ssh_password_auth, Some(false));
+        assert_eq!(p.share.directory, Some(PathBuf::from("~/work-share")));
+        assert_eq!(p.share.read_only, Some(true));
+        assert_eq!(p.resources.cpu, Some(8));
+        assert_eq!(p.resources.memory_mib, Some(8192));
+        assert_eq!(p.resources.refit, Some(false));
+        assert_eq!(p.resources.display.as_deref(), Some("2560x1600"));
+        assert_eq!(p.resources.scale, Some(150));
     }
 
     #[test]

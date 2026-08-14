@@ -68,11 +68,13 @@ clean:
   cd cli && cargo clean
 
 # The cache holds one content-addressed disk per build (~/.cache/bluefin-vm/<sha>/),
-# so it grows by ~21 GiB each time `up` fetches a new build. Path mirrors the
-# CLI's default_work_dir ($BLUEFIN_VM_WORK_DIR overrides both) -- keep them in step.
-[doc('Purge the up download cache (~/.cache/bluefin-vm); next `up` re-downloads')]
+# so it grows by ~21 GiB each time `up` fetches a new build. Emptying it costs
+# nothing while a VM exists, because Tart holds its own copy of the disk and
+# `up` only reads the cache when it has to create one. Path mirrors the CLI's
+# default_work_dir ($BLUEFIN_VM_WORK_DIR overrides both) -- keep them in step.
+[doc('Purge the up download cache (~/.cache/bluefin-vm); the next fresh VM re-downloads')]
 [no-cd]
-[confirm("Delete every cached VM disk image under ~/.cache/bluefin-vm? The next `up` re-downloads (~2.9 GiB). Continue?")]
+[confirm("Delete every cached VM disk image under ~/.cache/bluefin-vm? Creating a VM then re-downloads (~2.9 GiB); an existing VM is unaffected. Continue?")]
 [group('maintenance')]
 purge-cache:
   rm -rf "${BLUEFIN_VM_WORK_DIR:-$HOME/.cache/bluefin-vm}"

@@ -192,7 +192,7 @@ impl Form {
             Field {
                 label: "Directory",
                 accent: A_DIR,
-                hint: "host folder mounted as bluefin-share (blank = ~/bluefin-share)".into(),
+                hint: "host directory mounted as bluefin-share (blank = ~/bluefin-share)".into(),
                 input: Input::Text {
                     value: share
                         .and_then(|s| s.directory.as_ref())

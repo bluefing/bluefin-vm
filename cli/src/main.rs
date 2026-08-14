@@ -59,7 +59,7 @@ struct UpArgs {
     /// Where to cache disk images (each build under its own checksum).
     #[arg(long)]
     work_dir: Option<PathBuf>,
-    /// Host folder shared into the VM (durable tier).
+    /// Host directory shared into the VM (durable tier).
     #[arg(long)]
     share: Option<PathBuf>,
     /// Skip provisioning; boot the baked test login instead.
@@ -129,7 +129,7 @@ enum Command {
         name: String,
         #[command(flatten)]
         provision: ProvisionArgs,
-        /// Host folder shared into the VM (durable tier).
+        /// Host directory shared into the VM (durable tier).
         #[arg(long)]
         share: Option<PathBuf>,
     },
@@ -253,7 +253,7 @@ fn up(args: UpArgs) -> Result<()> {
         .with_context(|| format!("creating work dir {}", work_dir.display()))?;
 
     // Content-address the extracted disk by the published zip checksum: each
-    // build has a distinct hash and lands in its own folder, so `up` can never
+    // build has a distinct hash and lands in its own directory, so `up` can never
     // reuse a stale disk (the size-only extract skip once served a six-week-old
     // image). A cache hit is a single stat; the 65-byte `.sha256` sidecar tells
     // us which build is current, and `--sha256` pins the key without the fetch.

@@ -144,13 +144,13 @@ stop name=default_name:
 
 # --- attached: watch-it / debug variants ------------------------------------
 
-# Start a Tart VM in a window (attached; shares the durable folder)
+# Start a Tart VM in a window (attached; shares the durable directory)
 [group('attached')]
 start name=default_name:
   mkdir -p "{{default_share}}"
   tart run "{{name}}" --dir="bluefin-share:{{default_share}}"
 
-# Start a Tart VM headless (no window; shares the durable folder)
+# Start a Tart VM headless (no window; shares the durable directory)
 [group('attached')]
 start-headless name=default_name:
   mkdir -p "{{default_share}}"

@@ -1,0 +1,15 @@
+# markdownlint rules: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+default: true
+
+# Line length is mdformat's (wrap = 120), so MD013 would only argue with it.
+MD013: false
+
+# mdformat-mkdocs hardcodes nested-list indent at 4 spaces and offers no
+# setting for it, so the lint rule follows the formatter.
+MD007:
+  indent: 4
+
+# The code-block style check misreads mkdocs admonitions: markdownlint does
+# not know `!!! note`, reads its 4-space-indented body as an indented code
+# block, then calls the fenced blocks elsewhere inconsistent.
+MD046: false
