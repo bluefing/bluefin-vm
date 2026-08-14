@@ -71,7 +71,7 @@ fn set_args(spec: &VmSpec) -> Vec<String> {
     args
 }
 
-/// Args for `tart run`, sharing the durable host folder as `bluefin-share`.
+/// Args for `tart run`, sharing the durable host directory as `bluefin-share`.
 /// `read_only` appends Tart's `:ro` so the guest can't write back; `graphics=false`
 /// adds `--no-graphics` for a headless run.
 pub fn run_args(name: &str, share: &Path, read_only: bool, graphics: bool) -> Vec<String> {

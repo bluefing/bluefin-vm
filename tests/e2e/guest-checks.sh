@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Guest-side smoke test for a booted Bluefin VM. Run it INSIDE the VM
 # (a GUI terminal, or over `just tart ssh`). It writes a result log back to
-# the host through the shared folder -- which doubles as the share's own
+# the host through the shared directory -- which doubles as the share's own
 # round-trip proof: if the host sees the log, the share works.
 #
 # Arg 1 is an optional run label used in the log filename. `just tart smoke`
 # passes a host-generated timestamp so the host knows the exact file to expect
 # and can assert the round-trip; run by hand, it self-timestamps.
 #
-# Delivery: the script reaches the guest via the shared folder itself
+# Delivery: the script reaches the guest via the shared directory itself
 # (host ~/bluefin-share -> guest ~/Shared), so:  bash ~/Shared/guest-checks.sh
 # No -e: this is a report script -- a failing check is collected into the
 # summary, not aborted on (the repo's action scripts keep -euo pipefail).
