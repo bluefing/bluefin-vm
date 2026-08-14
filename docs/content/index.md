@@ -1,30 +1,30 @@
 # bluefin-vm
 
-Turn the upstream [Bluefin](https://projectbluefin.io) bootc container into a
-running Linux VM on Apple Silicon with one command — a provisioned desktop, no
-ISO, no installer, no greeter to click through.
+This project is a convenience wrapper that turns an upstream [Bluefin](https://projectbluefin.io) bootc container into a
+running Linux VM on Apple Silicon with one command.
 
-An `aarch64` guest under Apple's Virtualisation framework (via
-[Tart](https://tart.run)) runs at near-native speed. What this project adds is
-the convenience around it:
+It delivers a provisioned desktop, no ISO, no installer, no greeter to click through.
 
-- **One command up** — `bluefin-vm up` downloads the published disk, imports it
-  into Tart, provisions your account, and boots the desktop.
-- **Reproducible build** — the OS image is a bootc `Containerfile`; the disk is
-  built from it declaratively. Infrastructure-as-code, the OCI way.
-- **A daily driver, not a throwaway** — durable data lives on a host share and
-  the disk is re-imageable, so you rebuild the VM without losing state.
-- **Guest tweaks that matter** — clipboard, a shared folder, ssh, and display
-  scaling, set up so the VM feels like a real workstation.
+## Performance
 
-It's aimed at Bluefin users and developers who are already comfortable with
-cloud-native workflows — declarative config, ssh agents, tailscale. The
-[interactive TUI](getting-started/install.md) exposes every choice but
-requires none: the defaults boot a working, personal VM. `up` creates the VM
-once and boots it thereafter — replacing it is an explicit choice.
+An `aarch64` guest under Apple's Virtualisation framework (via [Tart](https://tart.run)) runs at near-native speed. In
+my experience, full-screened, you would struggle to tell it was not a bare metal install.
+
+On my Mac air M3 it took less than three minutes to go from invoking the `up` command to a provisioned, running desktop.
+Subsequent runs took around 30 seconds (the time it takes to boot) because the disk is cached on first run.
 
 ## Status
 
-Experimental — a working proof-of-concept, not a stable release. The pipeline
-runs end-to-end, the runtime is Tart, and the tool ships via a personal
-Homebrew tap.
+Experimental. This is a semver versioned proof-of-concept, beta release. The pipeline runs end-to-end, the runtime is
+Tart, and the tool ships via a personal Homebrew tap.
+
+## Planned
+
+Not built yet:
+
+- **Flavours**
+    - pick a Bluefin variant (e.g. `bluefin-dx`) as the base; each is just a different upstream image.
+- **Host key integration**
+    - use your host ssh keys / YubiKey from inside the guest via agent forwarding, no secrets copied in.
+- **Suspend / resume**
+    - pause keeping the in-RAM session (waiting on Tart's Linux-guest support).
