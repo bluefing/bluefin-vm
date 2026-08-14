@@ -7,10 +7,8 @@ The objective is to deliver a fast, low-friction dev environment — no ISO, no 
 
 ## Documentation
 
-`bluefin-vm` installs from a Homebrew tap.
-
-- [Getting started](https://bluefing.github.io/bluefin-vm/getting-started)
-- [Installation](https://bluefing.github.io/bluefin-vm/getting-started/install/)
+`bluefin-vm` installs from a Homebrew tap. Installation, quick start, and configuration are documented at
+<https://bluefing.github.io/bluefin-vm/>.
 
 ## License
 
