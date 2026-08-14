@@ -2,7 +2,8 @@
 # 120 rather than 80: prose reflows to the width editors and review diffs
 # actually use, and the formatter owns wrapping so nobody hand-wraps again.
 wrap = 120
-# Leave ordered-list numbering as written, so a list that counts 1. 2. 3.
-# keeps its numbers and one that repeats 1. keeps those.
-number = false
+# Number ordered lists consecutively. The alternative writes every item as
+# `1.`, which renders the same but makes a procedure hard to follow in the
+# source and impossible to cite a step of.
+number = true
 end_of_line = "lf"

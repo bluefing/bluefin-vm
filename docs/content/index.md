@@ -7,11 +7,11 @@ It delivers a provisioned desktop, no ISO, no installer, no greeter to click thr
 
 ## Performance
 
-An `aarch64` guest under Apple's Virtualisation framework (via [Tart](https://tart.run)) runs at near-native speed. In
-my experience, full-screened, you would struggle to tell it was not a bare metal install.
+An `aarch64` guest under Apple's Virtualisation framework (via [Tart](https://tart.run)) runs at near-native speed.
+Full-screened, it is hard to tell from a bare metal install.
 
-On my Mac air M3 it took less than three minutes to go from invoking the `up` command to a provisioned, running desktop.
-Subsequent runs took around 30 seconds (the time it takes to boot) because the disk is cached on first run.
+On an M3 Air, `up` reaches a provisioned desktop in under three minutes. Later runs take about as long as a desktop
+takes to boot, because the disk is cached on the first one.
 
 ## Status
 

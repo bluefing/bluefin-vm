@@ -13,9 +13,9 @@ How a `bluefin-vm` version reaches users. Two artefacts ship independently:
 access token:
 
 1. GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token.
-1. Resource owner `bluefing`, repository access **only** `homebrew-tap`, permission **Contents: read and write**.
+2. Resource owner `bluefing`, repository access **only** `homebrew-tap`, permission **Contents: read and write**.
     Nothing else.
-1. In `bluefin-vm` → Settings → Secrets and variables → Actions → New repository secret, name it `TAP_PUSH_TOKEN`.
+3. In `bluefin-vm` → Settings → Secrets and variables → Actions → New repository secret, name it `TAP_PUSH_TOKEN`.
 
 Rotate it by repeating those steps. The workflow reads the secret by name, so nothing else changes.
 
@@ -26,7 +26,7 @@ Versions follow semver, pre-1.0, so a breaking change is a minor bump.
 1. **Bump the crate.** Set `version` in `cli/Cargo.toml`, build once so `Cargo.lock` follows, and open a PR. `main` is
     protected, so this is the only way in. The tag is checked against this value, and a mismatch fails the release.
 
-1. **Tag the merge commit.** On an up-to-date `main`:
+2. **Tag the merge commit.** On an up-to-date `main`:
 
     ```bash
      just release X.Y.Z
@@ -36,14 +36,14 @@ Versions follow semver, pre-1.0, so a breaking change is a minor bump.
     declares that version, and the tag is unused. Add `-n` to run every check and stop before tagging. Tags matching
     `v*` are protected against updates and deletion, so a typo means cutting a new version rather than moving the tag.
 
-1. **Wait for `release.yml`.** It builds on an Apple Silicon runner, publishes the Release with the tarball and its
+3. **Wait for `release.yml`.** It builds on an Apple Silicon runner, publishes the Release with the tarball and its
     `.sha256`, then rewrites the tap formula's `url` and `sha256` and pushes. The run summary carries both values,
     ready to paste if the tap step fails.
 
-1. **Write the release notes.** The workflow leaves a one-line placeholder describing the artefact. In the repo's
+4. **Write the release notes.** The workflow leaves a one-line placeholder describing the artefact. In the repo's
     Releases page, open the new tag and edit its body to say what changed, leading with anything breaking.
 
-1. **Verify as a user.**
+5. **Verify as a user.**
 
     ```bash
      brew update && brew upgrade bluefin-vm

@@ -51,16 +51,16 @@ Guest (`bluefin-vm-provision.service` → `image/provision.sh`), on first boot, 
 the share (detected by its `username` file):
 
 1. `useradd` the user in `wheel` (skipped if it already exists);
-1. install `authorized_keys` → `~/.ssh` (700 dir, 600 file, owned by the user, SELinux-relabelled `ssh_home_t`[^selinux]
+2. install `authorized_keys` → `~/.ssh` (700 dir, 600 file, owned by the user, SELinux-relabelled `ssh_home_t`[^selinux]
     — sshd ignores a mislabelled key);
-1. set the login password to the username (`chpasswd`);
-1. if `passwordless-sudo` is present, add a `/etc/sudoers.d/bluefin-vm-<user>` drop-in[^sudo] granting `NOPASSWD`;
-1. if `disable-ssh-password` is present, write an `sshd_config.d` drop-in setting `PasswordAuthentication no` and reload
+3. set the login password to the username (`chpasswd`);
+4. if `passwordless-sudo` is present, add a `/etc/sudoers.d/bluefin-vm-<user>` drop-in[^sudo] granting `NOPASSWD`;
+5. if `disable-ssh-password` is present, write an `sshd_config.d` drop-in setting `PasswordAuthentication no` and reload
     sshd[^sshd];
-1. if a `scale` is set, stash it in the account's home (`~/.config/bluefin-vm/scale-request`); the
+6. if a `scale` is set, stash it in the account's home (`~/.config/bluefin-vm/scale-request`); the
     `bluefin-vm-apply-scale` user oneshot, gated on that file, applies it at first login by snapping to the nearest
     scale mutter reports for the live mode — the accepted values are per-mode and only the session-bus API knows them;
-1. delete `…/.bluefin-vm/`[^hygiene] — nothing sensitive lingers in the share.
+7. delete `…/.bluefin-vm/`[^hygiene] — nothing sensitive lingers in the share.
 
 The unit is **gated** on that `username` file (`ConditionPathExists=…/.bluefin-vm/username`) and **ordered**[^ordering]
 (`After=` the share mount so the file is visible; `Before=` gdm and user-sessions so the account exists before login).
@@ -106,27 +106,29 @@ login untouched.
     files), not `up` flags yet.
 - **One account.** The model provisions a single primary user; multi-user or per-key policies aren't expressed.
 
-\[^selinux\]: SELinux (enforcing on Bluefin) gates file access by *type label*, separately from Unix permissions: sshd
-runs in the `sshd_t` domain, and policy only lets it read files typed `ssh_home_t`. A key installed from the virtiofs
-share into a freshly-created `~/.ssh` can land with the wrong type — right `600`/owner, wrong label — and sshd is then
-denied from reading it, silently rejecting the login (a `publickey` failure that looks like a key problem but is
-SELinux). `restorecon -R ~/.ssh` resets the label to the policy-mandated `ssh_home_t`. Guarded on
-`/sys/fs/selinux/enforce`, so it is a no-op where SELinux is off (e.g. the container check).
+[^selinux]: SELinux (enforcing on Bluefin) gates file access by *type label*, separately from Unix permissions: sshd
+    runs in the `sshd_t` domain, and policy only lets it read files typed `ssh_home_t`. A key installed from the
+    virtiofs share into a freshly-created `~/.ssh` can land with the wrong type — right `600`/owner, wrong label
+    — and sshd is then denied from reading it, silently rejecting the login (a `publickey` failure that looks
+    like a key problem but is SELinux). `restorecon -R ~/.ssh` resets the label to the policy-mandated
+    `ssh_home_t`. Guarded on `/sys/fs/selinux/enforce`, so it is a no-op where SELinux is off (e.g. the
+    container check).
 
-\[^sudo\]: A per-user drop-in, not a blanket `%wheel NOPASSWD`: the account is already in `wheel`, but a global rule
-would make *every* wheel user password-less — including the baked `bluefin` account. Scoping it to one file touches only
-the provisioned user and is trivially reversible (delete the file, or re-provision with the toggle off). The username is
-validated before the file is written, since a malformed `sudoers.d` entry can break `sudo` wholesale.
+[^sudo]: A per-user drop-in, not a blanket `%wheel NOPASSWD`: the account is already in `wheel`, but a global rule would
+    make *every* wheel user password-less — including the baked `bluefin` account. Scoping it to one file touches
+    only the provisioned user and is trivially reversible (delete the file, or re-provision with the toggle off).
+    The username is validated before the file is written, since a malformed `sudoers.d` entry can break `sudo`
+    wholesale.
 
-\[^sshd\]: A `/etc/ssh/sshd_config.d/00-bluefin-vm-nopassword.conf` drop-in. The `00-` prefix sorts first, and sshd
-takes the first value it sees for an option, so it wins over the base image's own drop-ins. Reloaded in-place so it
-applies on this first boot rather than only the next.
+[^sshd]: A `/etc/ssh/sshd_config.d/00-bluefin-vm-nopassword.conf` drop-in. The `00-` prefix sorts first, and sshd takes
+    the first value it sees for an option, so it wins over the base image's own drop-ins. Reloaded in-place so it
+    applies on this first boot rather than only the next.
 
-\[^hygiene\]: The durable share is the user's *data* tier, so provisioning cleans up after itself. Nothing is lost by
-deleting — the host re-writes the details for each fresh disk — and it is public-key material anyway, so even
-mid-provision nothing secret sits in a host-visible, backed-up directory.
+[^hygiene]: The durable share is the user's *data* tier, so provisioning cleans up after itself. Nothing is lost by
+    deleting — the host re-writes the details for each fresh disk — and it is public-key material anyway, so
+    even mid-provision nothing secret sits in a host-visible, backed-up directory.
 
-\[^ordering\]: `After=var-mnt-shared.mount` so the provision files are visible when the condition is evaluated and the
-script runs — before the mount, the gate would miss them. `Before=gdm.service` and `systemd-user-sessions.service` so
-the account (with its `authorized_keys`) exists before first login or the greeter fires, rather than racing account
-creation against the login.
+[^ordering]: `After=var-mnt-shared.mount` so the provision files are visible when the condition is evaluated and the
+    script runs — before the mount, the gate would miss them. `Before=gdm.service` and
+    `systemd-user-sessions.service` so the account (with its `authorized_keys`) exists before first login or
+    the greeter fires, rather than racing account creation against the login.

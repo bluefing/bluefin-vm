@@ -54,23 +54,23 @@ bare metal. macOS keeps the hardware; the VM is built from the upstream bootc co
 
 1. **Seamlessness:** retina crispness, GPU smoothness, dynamic resolution — the full parity audit against the goal.
 
-1. **Brew package shape — decided 2026-07-28:** a thin Rust downloader tool (see Decided).
+2. **Brew package shape — decided 2026-07-28:** a thin Rust downloader tool (see Decided).
 
-1. **Publish pipeline:** disks live in R2 at `projectbluefin.dev` (done); still open: versioning, and wiring the bucket
+3. **Publish pipeline:** disks live in R2 at `projectbluefin.dev` (done); still open: versioning, and wiring the bucket
     to build/host from releases.
 
-1. **First-boot account creation — decided 2026-07-28:** host tooling writes the account into the share; a guest oneshot
+4. **First-boot account creation — decided 2026-07-28:** host tooling writes the account into the share; a guest oneshot
     creates it on first boot.
 
-1. **Install trust — verified 2026-07-29.** *Tap trust*: a fully-qualified `brew install` self-trusts our formula, but
+5. **Install trust — verified 2026-07-29.** *Tap trust*: a fully-qualified `brew install` self-trusts our formula, but
     the `tart` dependency (and its `softnet` dep) come from the unofficial `openai/tools` tap, which must be tapped +
     trusted too — documented in the README (Brewfile users add `trusted: true`). *Gatekeeper*: the
     unsigned/un-notarised arm64 binary runs with no quarantine friction (brew strips quarantine on formula downloads;
     the ad-hoc signature suffices to execute) — confirmed on the brew-installed tool.
 
-1. **Disk sizing:** is a 20 GiB root the right default? User-resizable?
+6. **Disk sizing:** is a 20 GiB root the right default? User-resizable?
 
-1. **Default credential posture — decision pending (surfaced 2026-08-01).** The default is autologin + password-less.
+7. **Default credential posture — decision pending (surfaced 2026-08-01).** The default is autologin + password-less.
     Testing showed that posture carries three papercuts, all rooted in autologin bypassing the password entry GDM/pam
     would otherwise use:
 

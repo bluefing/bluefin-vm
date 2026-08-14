@@ -37,10 +37,10 @@ on `/sys/fs/selinux/enforce`, the sshd reload is `|| true`, the scale block degr
 test:
 
 1. starts a throwaway `fedora` container,
-1. drops synthetic `…/.bluefin-vm/` files — username, key, and a chosen combination of `passwordless-sudo` /
+2. drops synthetic `…/.bluefin-vm/` files — username, key, and a chosen combination of `passwordless-sudo` /
     `disable-ssh-password` / `scale`,
-1. runs `provision.sh` as root,
-1. asserts the result: user in `wheel`; `authorized_keys` 600/owner; `password == username` in `/etc/shadow`; the
+3. runs `provision.sh` as root,
+4. asserts the result: user in `wheel`; `authorized_keys` 600/owner; `password == username` in `/etc/shadow`; the
     sudoers drop-in present *iff* passwordless; the sshd drop-in present *iff* ssh-off; the share cleared.
 
 Then it **matrixes** over the flag combinations — every posture permutation, no VM, on any Linux runner, every PR.
@@ -115,9 +115,9 @@ Locally it runs on the developer's Mac. This is the open dependency to resolve b
 
 1. **Tier 1 first** — the most coverage per unit of effort, and it runs everywhere. Needs the `pdir` hook, a bats +
     container harness, and the assertion script.
-1. **Refactor the smoke script** into the shared, posture-parametrised assertions (used by Tier 1 immediately, Tier 2
+2. **Refactor the smoke script** into the shared, posture-parametrised assertions (used by Tier 1 immediately, Tier 2
     later).
-1. **Tier 2** once the runner question is settled — wire boot + assert + teardown and a schedule.
+3. **Tier 2** once the runner question is settled — wire boot + assert + teardown and a schedule.
 
 ## Fidelity variants (later)
 

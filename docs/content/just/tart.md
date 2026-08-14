@@ -64,8 +64,8 @@ systemctl --user daemon-reload && systemctl --user start spice-vdagent
 address; ssh and smoke resolve through it. Both use the ARP resolver, because the default DHCP-lease lookup returns
 nothing on macOS 26.
 
-The provisioned account is password-less by design; for the credential model and the `bluefin-vm-harden` lock-down, see
-`docs/PROVISIONING.md`.
+The provisioned account's login password is the username, a convention rather than a secret, so the greeter, the lock
+screen, `sudo`, and polkit prompts all work. `bluefin-vm-harden` replaces it in the VM.
 
 ## Display density
 

@@ -12,7 +12,7 @@ Two properties carry the weight:
 1. **It's a daily driver, not disposable.** You live in it. Durable data lives on a host share and the disk is
     re-imageable, so you can rebuild the VM from the published image without losing your state — the way you'd
     reinstall a laptop, not the way you'd `docker rm` a container.
-1. **Zero-to-personal in one command.** `bluefin-vm up` downloads, imports, provisions your account, and boots. Sane
+2. **Zero-to-personal in one command.** `bluefin-vm up` downloads, imports, provisions your account, and boots. Sane
     defaults require no input; everything is overridable through the interactive TUI, which writes a per-VM profile
     that later commands reuse.
 

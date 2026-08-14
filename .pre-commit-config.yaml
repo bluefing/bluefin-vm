@@ -31,7 +31,8 @@ repos:
 
   # Markdown formatting, configured in .mdformat.toml. mdformat-gfm covers
   # tables and strikethrough; mdformat-mkdocs keeps the material `!!! note`
-  # admonitions intact, which plain mdformat flattens into indented code.
+  # admonitions intact, which plain mdformat flattens into indented code;
+  # mdformat-footnote stops `[^ref]:` definitions being escaped into text.
   # Symlinks are skipped: four .md files are symlinks into docs/content, and
   # formatting one through its link would rewrite the target twice.
   - repo: https://github.com/hukkin/mdformat
@@ -41,6 +42,7 @@ repos:
         additional_dependencies:
           - mdformat-gfm==1.0.0
           - mdformat-mkdocs==5.1.4
+          - mdformat-footnote==0.1.3
         exclude_types: [symlink]
 
   # Markdown structural lint -- what a formatter cannot see: bare URLs (MD034),
