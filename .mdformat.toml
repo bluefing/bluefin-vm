@@ -1,0 +1,8 @@
+# mdformat settings, applied by the pre-commit hook.
+# 120 rather than 80: prose reflows to the width editors and review diffs
+# actually use, and the formatter owns wrapping so nobody hand-wraps again.
+wrap = 120
+# Leave ordered-list numbering as written, so a list that counts 1. 2. 3.
+# keeps its numbers and one that repeats 1. keeps those.
+number = false
+end_of_line = "lf"

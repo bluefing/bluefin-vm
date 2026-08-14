@@ -29,6 +29,29 @@ repos:
         args: ["--maxkb=1024"]     # keep multi-GB images/bundles out of git
         stages: [pre-commit, pre-push]
 
+  # Markdown formatting, configured in .mdformat.toml. mdformat-gfm covers
+  # tables and strikethrough; mdformat-mkdocs keeps the material `!!! note`
+  # admonitions intact, which plain mdformat flattens into indented code.
+  # Symlinks are skipped: four .md files are symlinks into docs/content, and
+  # formatting one through its link would rewrite the target twice.
+  - repo: https://github.com/hukkin/mdformat
+    rev: 1.0.0
+    hooks:
+      - id: mdformat
+        additional_dependencies:
+          - mdformat-gfm==1.0.0
+          - mdformat-mkdocs==5.1.4
+        exclude_types: [symlink]
+
+  # Markdown structural lint -- what a formatter cannot see: bare URLs (MD034),
+  # unlabelled code fences (MD040), heading hierarchy (MD001). Config lives in
+  # .markdownlint.yaml, which turns off the rules mdformat owns.
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.22.1
+    hooks:
+      - id: markdownlint-cli2
+        exclude_types: [symlink]
+
   # Shell + Dockerfile lint/format -- version pinned by pre-commit (python
   # wheels that bundle the binary), so local and CI are identical.
   - repo: https://github.com/shellcheck-py/shellcheck-py
